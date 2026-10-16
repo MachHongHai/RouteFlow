@@ -22,4 +22,3 @@
   {% if target.type == 'bigquery' %}to_hex(md5(cast({{ column }} as string)))
   {% else %}md5(cast({{ column }} as text)){% endif %}
 {%- endmacro %}
-

@@ -41,4 +41,3 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["integration: requires local PostgreSQL and Pub/Sub Emulator", "e2e: full local pipeline including dbt"]
-

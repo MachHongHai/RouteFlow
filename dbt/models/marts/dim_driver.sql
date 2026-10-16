@@ -5,4 +5,3 @@ select {{ key("driver_id || ':' || cast(aggregate_version as " ~ dbt.type_string
        case when lead(event_time) over (partition by driver_id order by aggregate_version) is null
             then true else false end as is_current
 from {{ ref('stg_drivers') }}
-

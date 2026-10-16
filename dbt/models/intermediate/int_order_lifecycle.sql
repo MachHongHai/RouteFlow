@@ -17,4 +17,3 @@ select r.order_id, r.customer_id, r.restaurant_id, r.zone_id, r.driver_id, r.pay
        t.assigned_at, t.picked_up_at, t.delivered_at, t.cancelled_at, t.paid_at,
        t.processed_ingestion_at
 from ranked r join times t on r.order_id=t.order_id where r.state_rank=1
-

@@ -16,4 +16,3 @@ with affected as (
 select l.*, {{ key('l.customer_id') }} as customer_key,
        {{ key('l.restaurant_id') }} as restaurant_key, {{ key('l.zone_id') }} as zone_key
 from {{ ref('int_order_lifecycle') }} l join affected a on l.order_id=a.order_id
-

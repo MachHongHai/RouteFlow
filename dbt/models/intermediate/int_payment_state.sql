@@ -4,4 +4,3 @@ with ranked as (
 )
 select payment_id, order_id, payment_status, amount_cents, event_time
 from ranked where rank=1
-
