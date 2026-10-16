@@ -44,6 +44,10 @@ No Kafka, Kubernetes, always-on cloud worker or paid Spark cluster is required.
 
 ## Run locally
 
+On this Windows workstation, keep project/cache data on D and Docker bulk data on E. Use the
+guarded PowerShell wrapper in [storage placement](docs/DISK_STORAGE.md) to set cache/temp paths
+and check Docker's destination before starting builds.
+
 ```bash
 uv sync --frozen
 docker compose up -d --build

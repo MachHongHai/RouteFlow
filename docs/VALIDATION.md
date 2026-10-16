@@ -24,6 +24,8 @@ No GCP account, cloud credential, billable resource or GitHub-hosted workflow wa
 | Docker Terraform `init -backend=false` / `fmt -check -recursive` / `validate` | Passed; Google provider 7.46.1 locked |
 | Chaos duplicate / consumer crash / invalid schema probes | All verified real persisted outcomes |
 | Host `spark-backfill` command repeated on unchanged input | Nine rows / 264 points / unchanged per-driver distance totals asserted |
+| Docker disk migration C to E | Offline VHD SHA256 matches; image/volume inventories match; warehouse counts retained; core and Spark services restarted |
+| Windows storage wrapper | Cache/Python paths on D, Docker/WSL paths on E, Compose config and Ruff passed; see `DISK_STORAGE.md` |
 
 The default suite intentionally skips infrastructure tests. All 35 tests were separately executed
 in their required local environments: 25 application/contract/integration/E2E and 10 Spark tests.
