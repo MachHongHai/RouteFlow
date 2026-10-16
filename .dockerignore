@@ -1,0 +1,15 @@
+.git
+.venv
+.local
+__pycache__
+dbt/target
+dbt/logs
+.env
+.terraform
+.mypy_cache
+.ruff_cache
+.pytest_cache
+*.tfstate*
+
+*.log
+infra/terraform/.terraform

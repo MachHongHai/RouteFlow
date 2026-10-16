@@ -1,0 +1,344 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RouteFlow envelope V2",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "event_version",
+    "aggregate_id",
+    "aggregate_version",
+    "event_time",
+    "produced_at",
+    "producer",
+    "correlation_id",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "event_type": {
+      "enum": [
+        "ORDER_CREATED",
+        "PAYMENT_CONFIRMED",
+        "PAYMENT_FAILED",
+        "RESTAURANT_ACCEPTED",
+        "DRIVER_ASSIGNED",
+        "DRIVER_ARRIVED",
+        "ORDER_PICKED_UP",
+        "IN_TRANSIT",
+        "DELIVERED",
+        "ORDER_CANCELLED",
+        "DRIVER_CANCELLED",
+        "REFUND_CREATED",
+        "CUSTOMER_UPDATED",
+        "RESTAURANT_UPDATED",
+        "DRIVER_UPDATED",
+        "ZONE_UPDATED",
+        "DRIVER_LOCATION"
+      ]
+    },
+    "event_version": {
+      "const": 2
+    },
+    "aggregate_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "event_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "produced_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payload": {
+      "type": "object"
+    },
+    "traceparent": {
+      "type": "string",
+      "description": "Optional W3C trace context; old consumers ignore this field."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "enum": [
+              "ORDER_CREATED",
+              "PAYMENT_CONFIRMED",
+              "PAYMENT_FAILED",
+              "RESTAURANT_ACCEPTED",
+              "DRIVER_ASSIGNED",
+              "DRIVER_ARRIVED",
+              "ORDER_PICKED_UP",
+              "IN_TRANSIT",
+              "DELIVERED",
+              "ORDER_CANCELLED",
+              "DRIVER_CANCELLED",
+              "REFUND_CREATED"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "order_id",
+              "customer_id",
+              "restaurant_id",
+              "zone_id",
+              "status",
+              "amount_cents",
+              "payment_status",
+              "created_at",
+              "distance_km"
+            ],
+            "properties": {
+              "order_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "customer_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "restaurant_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "zone_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "status": {
+                "enum": [
+                  "ORDER_CREATED",
+                  "PAYMENT_CONFIRMED",
+                  "PAYMENT_FAILED",
+                  "RESTAURANT_ACCEPTED",
+                  "DRIVER_ASSIGNED",
+                  "DRIVER_ARRIVED",
+                  "ORDER_PICKED_UP",
+                  "IN_TRANSIT",
+                  "DELIVERED",
+                  "ORDER_CANCELLED",
+                  "DRIVER_CANCELLED",
+                  "REFUND_CREATED"
+                ]
+              },
+              "amount_cents": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "payment_status": {
+                "enum": [
+                  "PENDING",
+                  "CONFIRMED",
+                  "FAILED",
+                  "REFUNDED"
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "distance_km": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "CUSTOMER_UPDATED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "id",
+              "name"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "zone_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "RESTAURANT_UPDATED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "id",
+              "name",
+              "zone_id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "zone_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "DRIVER_UPDATED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "id",
+              "name",
+              "zone_id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "zone_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "ZONE_UPDATED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "id",
+              "name"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "zone_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "DRIVER_LOCATION"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "driver_id",
+              "latitude",
+              "longitude"
+            ],
+            "properties": {
+              "driver_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "latitude": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              },
+              "longitude": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": true
+}

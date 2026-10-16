@@ -1,0 +1,22 @@
+version: 2
+sources:
+- name: raw
+  database: '{{ env_var(''GOOGLE_CLOUD_PROJECT'', ''routeflow-local'') if target.type
+    == ''bigquery'' else env_var(''DBT_DATABASE'', ''warehouse'') }}'
+  schema: '{{ env_var(''BIGQUERY_DATASET'', ''routeflow_raw'') if target.type == ''bigquery''
+    else ''public'' }}'
+  tables:
+  - name: raw_events
+    description: Immutable logical events; local PK deduplicates, BigQuery deduplicates
+      in staging.
+    columns:
+    - name: event_id
+      data_tests:
+      - not_null
+    - name: aggregate_version
+      data_tests:
+      - not_null
+  - name: spark_driver_daily_distance
+  - name: spark_driver_hourly_activity
+  - name: spark_zone_hourly_driver_activity
+  - name: spark_driver_gps_quality_metrics

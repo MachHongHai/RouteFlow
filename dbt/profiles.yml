@@ -1,0 +1,23 @@
+routeflow:
+  target: local
+  outputs:
+    local:
+      type: postgres
+      host: "{{ env_var('DBT_HOST', '127.0.0.1') }}"
+      port: "{{ env_var('DBT_PORT', '55433') | int }}"
+      user: "{{ env_var('DBT_USER', 'routeflow') }}"
+      password: "{{ env_var('DBT_PASSWORD', 'routeflow') }}"
+      dbname: "{{ env_var('DBT_DATABASE', 'warehouse') }}"
+      schema: analytics
+      threads: 4
+    cloud:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GOOGLE_CLOUD_PROJECT', 'routeflow-local') }}"
+      dataset: routeflow_analytics
+      location: "{{ env_var('GCP_REGION', 'us-central1') }}"
+      threads: 1
+      priority: batch
+      maximum_bytes_billed: 100000000
+      job_execution_timeout_seconds: 300
+

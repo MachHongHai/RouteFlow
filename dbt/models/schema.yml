@@ -1,0 +1,107 @@
+version: 2
+models:
+- name: stg_events
+  description: Validated stg events
+  columns:
+  - name: event_id
+    data_tests:
+    - unique
+    - not_null
+- name: fact_order
+  description: One row per order; latest aggregate version, complete lifecycle timestamps.
+  columns:
+  - name: order_id
+    data_tests:
+    - unique
+    - not_null
+  - name: customer_id
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('dim_customer')
+          field: customer_id
+  - name: restaurant_id
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('dim_restaurant')
+          field: restaurant_id
+  - name: zone_id
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('dim_zone')
+          field: zone_id
+  - name: status
+    data_tests:
+    - accepted_values:
+        arguments:
+          values:
+          - ORDER_CREATED
+          - PAYMENT_CONFIRMED
+          - PAYMENT_FAILED
+          - RESTAURANT_ACCEPTED
+          - DRIVER_ASSIGNED
+          - DRIVER_ARRIVED
+          - ORDER_PICKED_UP
+          - IN_TRANSIT
+          - DELIVERED
+          - ORDER_CANCELLED
+          - DRIVER_CANCELLED
+          - REFUND_CREATED
+- name: fact_payment
+  description: One row per simulated payment; refund updates the same payment.
+  columns:
+  - name: payment_id
+    data_tests:
+    - unique
+    - not_null
+- name: fact_delivery
+  description: One row per delivered order with driver SCD2 key at assignment time.
+  columns:
+  - name: order_id
+    data_tests:
+    - unique
+    - not_null
+  - name: driver_key
+    data_tests:
+    - not_null
+    - relationships:
+        arguments:
+          to: ref('dim_driver')
+          field: driver_key
+- name: dim_driver
+  description: One row per driver profile version; half-open validity intervals.
+  columns:
+  - name: driver_key
+    data_tests:
+    - unique
+    - not_null
+- name: dim_customer
+  description: Validated dim customer
+  columns:
+  - name: customer_id
+    data_tests:
+    - unique
+    - not_null
+- name: dim_restaurant
+  description: Validated dim restaurant
+  columns:
+  - name: restaurant_id
+    data_tests:
+    - unique
+    - not_null
+- name: dim_zone
+  description: Validated dim zone
+  columns:
+  - name: zone_id
+    data_tests:
+    - unique
+    - not_null
+- name: dim_date
+  description: Validated dim date
+  columns:
+  - name: business_date
+    data_tests:
+    - unique
+    - not_null

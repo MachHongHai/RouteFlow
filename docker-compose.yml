@@ -1,0 +1,129 @@
+name: routeflow
+x-app: &app
+  image: routeflow-app:local
+  build:
+    context: .
+    target: runtime
+  environment: &env
+    SOURCE_DATABASE_URL: postgresql+psycopg://routeflow:routeflow@source:5432/routeflow
+    WAREHOUSE_DATABASE_URL: postgresql+psycopg://routeflow:routeflow@warehouse:5432/warehouse
+    PUBSUB_EMULATOR_HOST: pubsub:8085
+    GOOGLE_CLOUD_PROJECT: routeflow-local
+    ARCHIVE_PATH: /archive
+    DBT_HOST: warehouse
+    DBT_PORT: '5432'
+    DBT_PROFILES_DIR: /app/dbt
+  volumes:
+    - archive:/archive
+    - dbt-target:/app/dbt/target
+    - dbt-logs:/app/dbt/logs
+    - lake:/lake
+  depends_on:
+    init:
+      condition: service_completed_successfully
+  restart: unless-stopped
+services:
+  source:
+    image: postgres:16@sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54
+    environment:
+      POSTGRES_USER: routeflow
+      POSTGRES_PASSWORD: routeflow
+      POSTGRES_DB: routeflow
+    ports: ['127.0.0.1:55432:5432']
+    volumes: [source-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U routeflow -d routeflow']
+      interval: 3s
+      retries: 30
+  warehouse:
+    image: postgres:16@sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54
+    environment:
+      POSTGRES_USER: routeflow
+      POSTGRES_PASSWORD: routeflow
+      POSTGRES_DB: warehouse
+    ports: ['127.0.0.1:55433:5432']
+    volumes: [warehouse-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U routeflow -d warehouse']
+      interval: 3s
+      retries: 30
+  pubsub:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators@sha256:dff831e11d4013af597446d43e1222a9196d9b2b0c8180606bb2e35bf1ea6e03
+    command: gcloud beta emulators pubsub start --project=routeflow-local --host-port=0.0.0.0:8085
+    ports: ['127.0.0.1:58085:8085']
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8085']
+      interval: 5s
+      retries: 40
+  init:
+    <<: *app
+    user: root
+    command: ['sh', '-c', 'mkdir -p /archive /lake /app/dbt/target /app/dbt/logs && chown -R 10001 /archive /lake /app/dbt/target /app/dbt/logs && alembic upgrade head && python -m routeflow.cli init && python -m routeflow.cli provision']
+    depends_on:
+      source: {condition: service_healthy}
+      warehouse: {condition: service_healthy}
+      pubsub: {condition: service_healthy}
+    restart: 'no'
+  api:
+    <<: *app
+    ports: ['127.0.0.1:58000:8080']
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:8080/health/ready')"]
+      interval: 10s
+      retries: 10
+  relay:
+    <<: *app
+    command: ['python', '-m', 'routeflow.cli', 'relay', '--watch']
+  consumer:
+    <<: *app
+    command: ['python', '-m', 'routeflow.cli', 'consume']
+  spark-master:
+    profiles: [spark]
+    build: {context: ., target: spark}
+    image: routeflow-spark:local
+    entrypoint: ['spark-class', 'org.apache.spark.deploy.master.Master']
+    command: ['--host', 'spark-master', '--port', '7077', '--webui-port', '8080']
+    ports: ['127.0.0.1:58080:8080']
+    mem_limit: 768m
+    cpus: 1
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:8080')"]
+      interval: 5s
+      retries: 30
+  spark-worker:
+    profiles: [spark]
+    image: routeflow-spark:local
+    build: {context: ., target: spark}
+    entrypoint: ['spark-class', 'org.apache.spark.deploy.worker.Worker']
+    command: ['--cores', '2', '--memory', '1536m', '--work-dir', '/tmp/spark-work', 'spark://spark-master:7077']
+    environment:
+      PYSPARK_PYTHON: /app/.venv/bin/python
+      PYTHONPATH: /app
+    volumes: [archive:/archive:ro, lake:/lake]
+    mem_limit: 3g
+    cpus: 2
+    depends_on:
+      spark-master: {condition: service_healthy}
+  spark-job:
+    profiles: [spark-job]
+    image: routeflow-spark:local
+    build: {context: ., target: spark}
+    environment:
+      <<: *env
+      SPARK_MASTER: spark://spark-master:7077
+      DATA_LAKE_PATH: /lake
+    entrypoint: ['spark-submit', '--master', 'spark://spark-master:7077', '--conf', 'spark.driver.host=spark-job', '--conf', 'spark.driver.bindAddress=0.0.0.0', '--executor-memory', '1g', '--total-executor-cores', '2', '/app/scripts/spark_job.py']
+    volumes: [archive:/archive:ro, lake:/lake]
+    mem_limit: 3g
+    cpus: 2
+    depends_on:
+      init: {condition: service_completed_successfully}
+      spark-worker: {condition: service_started}
+volumes:
+  source-data:
+  warehouse-data:
+  archive:
+  dbt-target:
+  dbt-logs:
+  lake:
+
