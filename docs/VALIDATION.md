@@ -83,3 +83,24 @@ suite because their implementation did not change. Earlier results remain histor
 not a claim that a new full suite was run. Terraform plan/apply, GCP project/API reads with ADC,
 runtime IAM, cloud writes, alert delivery and GitHub Actions execution remain unverified.
 See [project gaps](PROJECT_GAPS_VI.md) and [first GCP setup](GCP_GETTING_STARTED_VI.md).
+
+## Docker update recovery, 2026-10-16
+
+Docker Desktop 4.95.0 / Engine 29.8.2 initially exposed an empty default-C store. The existing
+33.687-GiB E disk was preserved and copied with a full SHA256 match before switching storage.
+The correct WSL setting, `CustomWslDistroDir`, now pins the direct E path. The old Desktop-root
+junction was retired; host sockets/logs use a normal Windows directory. See
+[incident and recovery](DOCKER_RECOVERY_VI.md).
+
+- All 17 previous containers, 9 volumes and image/tag inventory reappeared; ecommerce stays stopped.
+- Source orders = facts = 34, RAW = 562, GPS daily rows = 9, points = 264, km = 60.639007624322296.
+- `scripts/backup_local.py backup` created two custom-format PG dumps and archive/lake tar files on D.
+- `verify` restored into disposable network-isolated PostgreSQL: 18 source and 17 warehouse base
+  tables matched all row fingerprints. Safe extraction recovered 563 archive and 89 lake files.
+- A full Desktop stop/start via the helper was executed; inventory and business counts persisted.
+- API readiness returned ready, Spark worker ALIVE; all six source/mart reconciliation checks passed.
+- Ruff and mypy checks cover the added backup tool; this incident did not rerun the Spark job suite.
+
+The logical restore drill applies to RouteFlow, not the ecommerce applications. The full disk
+snapshot and their existing volumes were retained. No factory reset, volume prune or business
+data regeneration was used to make the old counts reappear.

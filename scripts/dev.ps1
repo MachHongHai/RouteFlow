@@ -27,19 +27,18 @@ foreach ($directory in @($env:UV_CACHE_DIR, $env:PIP_CACHE_DIR, $env:CLOUDSDK_CO
 }
 
 if ($Tool -eq 'docker') {
-    $dockerData = Get-Item -LiteralPath "$env:LOCALAPPDATA\Docker" -Force
-    if ($dockerData.LinkType -ne 'Junction' -or
-        [IO.Path]::GetFullPath([string]$dockerData.Target) -ne 'E:\DockerDesktop\data') {
-        throw 'Docker data is not verified on E. Do not build or start new workloads until storage migration is complete.'
-    }
     $dockerSettings = Get-Content -LiteralPath "$env:APPDATA\Docker\settings-store.json" -Raw | ConvertFrom-Json
     $wslRegistration = @(Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss' |
         ForEach-Object { Get-ItemProperty -LiteralPath $_.PSPath } |
         Where-Object { $_.DistributionName -eq 'docker-desktop' })
-    if ($dockerSettings.DataFolder -ne 'E:\DockerDesktop\data\wsl' -or
-        $wslRegistration.Count -ne 1 -or
-        $wslRegistration[0].BasePath -ne '\\?\E:\DockerDesktop\data\wsl\main') {
-        throw 'Docker or WSL storage settings no longer point to the verified E locations.'
+    if ($dockerSettings.CustomWslDistroDir -ne 'E:\DockerDesktop\data\wsl' -or
+        -not (Test-Path -LiteralPath 'E:\DockerDesktop\data\wsl\disk\docker_data.vhdx')) {
+        throw 'Docker WSL data is not pinned to E. Do not create fresh volumes or rebuild; inspect the saved disk and recovery guide.'
+    }
+    $isDesktopStart = $Arguments.Count -ge 2 -and $Arguments[0] -eq 'desktop' -and $Arguments[1] -eq 'start'
+    if (-not $isDesktopStart -and ($wslRegistration.Count -ne 1 -or
+        $wslRegistration[0].BasePath -ne '\\?\E:\DockerDesktop\data\wsl\main')) {
+        throw 'Docker WSL runtime no longer points to E. Start Desktop with the helper, then inspect registration before running workloads.'
     }
     $wslSettings = Get-Content -LiteralPath "$env:USERPROFILE\.wslconfig"
     if ($wslSettings -notcontains 'swapFile=E:\\DockerDesktop\\wsl-swap.vhdx' -or

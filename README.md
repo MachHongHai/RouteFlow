@@ -51,6 +51,8 @@ No Kafka, Kubernetes, always-on cloud worker or paid Spark cluster is required.
 On this Windows workstation, keep project/cache data on D and Docker bulk data on E. Use the
 guarded PowerShell wrapper in [storage placement](docs/DISK_STORAGE.md) to set cache/temp paths
 and check Docker's destination before starting builds.
+If containers disappear after a Desktop update, use the [recovery runbook](docs/DOCKER_RECOVERY_VI.md)
+to locate the existing disk and verify backups before rebuilding.
 
 ```bash
 uv sync --frozen

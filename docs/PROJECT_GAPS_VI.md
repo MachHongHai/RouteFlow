@@ -13,7 +13,7 @@ Không dùng số bài test local để khẳng định GCP sẵn sàng producti
 | P1 cloud | Relay cloud chạy theo job/schedule | Local streaming có thể liên tục; cloud có độ trễ theo lịch | Đo độ trễ; chọn CDC/relay liên tục nếu SLA cần |
 | P1 cloud | Spark cloud chưa có runner/GCS connector | Streaming cloud có thể chạy riêng; GPS cloud chưa có execution path vận hành hoàn chỉnh | Duy trì Spark local; chỉ cấu hình runner cloud khi có nhu cầu/chi phí được duyệt |
 | P1 vận hành | Cảnh báo chưa được gửi thử; email mặc định trống | Có alert policy không có nghĩa operator nhận được cảnh báo | Điền `notification_email`, tạo sự cố thử và kiểm tra khôi phục |
-| P1 vận hành | Chưa diễn tập backup/restore database hoặc HA | Replay archive không thay thế backup OLTP; chưa có RPO/RTO đo được | Chạy restore vào DB tách biệt, ghi số liệu phục hồi |
+| P1 vận hành | Đã diễn tập restore local sau sự cố Docker; chưa có HA hoặc backup ngoài máy | Backup/restore 18 bảng nguồn, 17 bảng warehouse đã khớp; chưa có RPO/RTO production | Bổ sung bản sao ngoài máy và diễn tập mất ổ đĩa/production khi cần |
 | P1 release | Chưa có Git remote, CI/GitHub WIF chưa chạy thật | Chỉ kiểm chứng các lệnh local tương ứng | Tạo repository remote, push, cấu hình `gcp`, chạy CI/deploy |
 | P2 dữ liệu | Spark quét lịch sử và rebuild suffix để bảo toàn chuỗi GPS | Chưa phải incremental tối ưu ở dữ liệu lớn; partition pruning đầu vào còn hạn chế | Cần checkpoint/index theo driver và phạm vi ảnh hưởng trước khi tối ưu |
 | P2 lưu trữ | Parquet generation cũ chưa có GC local tự động | Chạy lại nhiều lần tăng dung lượng Docker trên E | Thiết kế retention bảo vệ run đang dùng/phục hồi, dry-run trước khi xóa |

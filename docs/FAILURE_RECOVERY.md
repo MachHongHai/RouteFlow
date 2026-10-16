@@ -1,5 +1,10 @@
 # Failure probes and recovery
 
+For an empty Docker inventory after a Desktop update, see
+[verified Windows recovery](DOCKER_RECOVERY_VI.md). Do not rebuild over a fresh empty store before
+locating the saved VHD. `scripts/backup_local.py` creates quiesced logical backups and verifies
+them by actually restoring into isolated PostgreSQL containers.
+
 The controlled chaos CLI asserts actual database outcomes. Run locally after generating and
 ingesting a workload, and after an initial dbt build for order-state/reconciliation scenarios.
 Use a disposable local project for repeated destructive analytical probes.

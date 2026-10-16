@@ -12,16 +12,18 @@ builds unless the storage checks in the development wrapper pass.
 | pip cache | `D:\DevCache\pip` |
 | Google Cloud CLI config, logs and ADC | `D:\DevCache\gcloud` |
 | Temporary files from the development wrapper | `D:\RouteFlow-storage\tmp` |
-| Docker Desktop data, images, build cache, volumes and container logs | `E:\DockerDesktop\data` |
+| Docker images, build cache, volumes and container logs | `E:\DockerDesktop\data\wsl` |
+| Desktop host settings/logs/sockets (small Windows files) | Normal directory `C:\Users\ADMIN\AppData\Local\Docker` |
 | Active Docker data disk | `E:\DockerDesktop\data\wsl\disk\docker_data.vhdx` |
 | Registered Docker WSL runtime | `E:\DockerDesktop\data\wsl\main\ext4.vhdx` |
 | WSL swap / crash dumps | `E:\DockerDesktop\wsl-swap.vhdx` / `E:\DockerDesktop\wsl-crashes` |
 | Retained offline Docker migration copies | `E:\DockerDesktop\migration-backups-20261016` |
 
 `scripts/dev.ps1` sets cache, managed-Python and temporary directories before invoking tools.
-For Docker it additionally refuses to proceed unless the original Docker data directory is an
-NTFS junction targeting the expected E location, Docker's `DataFolder` points to E, the
-`docker-desktop` WSL registration uses its direct E path, and WSL swap/crash settings point to E.
+For Docker it additionally refuses to proceed unless Docker's **`CustomWslDistroDir`** points to E,
+the saved data disk exists, the `docker-desktop` WSL registration uses its direct E path, and WSL
+swap/crash settings point to E. Desktop startup may repair the runtime registration; workloads
+are checked after startup. `DataFolder` alone does not select the WSL disk.
 It does not download packages or start services merely to check storage.
 
 ```powershell
@@ -32,12 +34,12 @@ It does not download packages or start services merely to check storage.
 .\scripts\dev.ps1 docker compose up -d --build
 ```
 
-Existing C cache/runtime paths are retained as junctions to D for compatibility with installed
-tools and the existing virtual environment. The C Docker data path is likewise retained as a
-junction to E for Docker's other data and logs. WSL must use its direct E registration: a junction
-alone was insufficient for mounting the runtime disk. A path shown as C in a program is therefore
-not evidence that bulk data still occupies C; inspect its junction target and the actual VHD
-location. Small Windows/application configuration files may remain on C.
+Existing C Python cache/runtime paths are retained as junctions to D for compatibility with
+installed tools and the existing virtual environment. **The earlier Docker root junction was
+retired after the 4.95 update exposed a fresh default-C store.** Docker now uses its supported
+`CustomWslDistroDir` setting for the direct E path. The former junction is preserved under
+`Docker.routeflow-E-junction-preserved-20261016`; it is not the active Desktop root. Host sockets
+and logs remain in a normal C directory; bulk storage and WSL swap remain on E.
 
 `C:\Users\ADMIN\.wslconfig` configures `swapFile` and `crashDumpFolder` on E. These are global
 WSL2 settings; this machine currently has only Docker's distribution. Docker/WSL was shut down
@@ -51,14 +53,15 @@ database counts have been checked against the new physical disk. No volume-prune
 is part of this migration.
 
 This host also reproduced Docker Desktop's Secrets Engine startup failure on an orphaned
-`engine.sock`, including after a Desktop stop. See the primary
+`engine.sock`, and after the update `run/sailor-ingest.sock`. See the primary
 [Docker issue report](https://github.com/docker/for-win/issues/15064). Use `scripts/start-docker.ps1`
 for a fresh start after quitting Desktop: it preserves the socket parent directory under a unique
 backup name only when the backend is stopped and the contents are zero-byte socket files.
+It also preserves the Desktop `run` directory before a fresh start to avoid stale Ingest sockets.
 It refuses unexpected contents and never deletes them. If Desktop is already running, the script
 leaves the socket directory alone. This is a local workaround; no Docker upgrade was installed.
 
-On 2026-10-16, Docker Engine 29.8.0 started successfully after the WSL runtime was re-registered
+Initially on 2026-10-16, Docker Engine 29.8.0 started successfully after the WSL runtime was re-registered
 from a SHA256-verified VHD on E; Docker then placed the registration under its configured
 `DataFolder` on E. Image/tag and volume inventories matched the pre-migration
 snapshot. Source orders = 34, warehouse RAW events = 562, fact orders = 34, GPS daily rows = 9,
@@ -71,4 +74,5 @@ disk. They are not required for normal Docker operation; retain them until the o
 to remove them. Small socket/configuration backup directories can remain on C. The inactive
 pre-migration uv backup directories also remain on C (about 2 GiB); the active caches and Python
 installations are on D. Final observed free space was approximately C = 46.09 GiB, D = 53.23 GiB,
-E = 79.70 GiB after the WSL swap disk was created on E.
+E = 79.70 GiB after the WSL swap disk was created on E. These free-space figures are historical,
+before the later recovery snapshot; see [update recovery](DOCKER_RECOVERY_VI.md) for current evidence.

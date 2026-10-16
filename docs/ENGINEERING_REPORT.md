@@ -62,6 +62,11 @@ Budget chỉ cảnh báo; image lớn có thể vượt dung lượng miễn ph�
 
 ## G. Giới hạn còn lại
 
+Sau cập nhật Docker 4.95 đã phục hồi inventory và dữ liệu cũ, sửa khóa WSL storage và diễn tập
+restore logic trên môi trường tách biệt. 18 bảng nguồn và 17 bảng warehouse khớp fingerprint;
+archive/lake giải nén thành công. Xem [DOCKER_RECOVERY_VI.md](DOCKER_RECOVERY_VI.md).
+Đây là backup local; HA, bản sao ngoài máy và RPO/RTO production vẫn chưa có.
+
 Danh sách thiếu sót có ưu tiên, tác động và bước tiếp theo được duy trì tại
 [PROJECT_GAPS_VI.md](PROJECT_GAPS_VI.md). Chủ dự án chưa có project GCP; đã thêm hướng dẫn
 [GCP_GETTING_STARTED_VI.md](GCP_GETTING_STARTED_VI.md), gcloud wrapper dùng image có sẵn và
