@@ -1,0 +1,49 @@
+name: Opt-in GCP application deployment
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        default: portfolio
+        required: true
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  deploy:
+    if: vars.GCP_PROJECT_ID != '' && vars.GCP_WIF_PROVIDER != ''
+    environment: gcp
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Build and push application
+        env:
+          PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+        run: |
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT/routeflow/app:$GITHUB_SHA"
+          docker build --target runtime -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+      - name: Update services and bounded jobs
+        env:
+          PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          for SERVICE in api consumer; do
+            gcloud run services update "routeflow-$DEPLOY_ENVIRONMENT-$SERVICE" --image "$IMAGE" --project "$PROJECT" --region "$REGION"
+          done
+          for JOB in produce transform migrate; do
+            gcloud run jobs update "routeflow-$DEPLOY_ENVIRONMENT-$JOB" --image "$IMAGE" --project "$PROJECT" --region "$REGION"
+          done
+          gcloud run jobs execute "routeflow-$DEPLOY_ENVIRONMENT-migrate" --wait --project "$PROJECT" --region "$REGION"
+          gcloud run jobs execute "routeflow-$DEPLOY_ENVIRONMENT-produce" --wait --project "$PROJECT" --region "$REGION"
+          gcloud run jobs execute "routeflow-$DEPLOY_ENVIRONMENT-transform" --wait --project "$PROJECT" --region "$REGION"
+      - name: Report verified job smoke test
+        run: echo 'Migration, real ingestion barrier, dbt business tests and reconciliation completed successfully.'

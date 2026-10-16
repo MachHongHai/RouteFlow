@@ -1,0 +1,8 @@
+project_id             = "your-gcp-project"
+region                 = "us-central1"
+environment            = "portfolio"
+image                  = "us-central1-docker.pkg.dev/your-gcp-project/routeflow/app:REPLACE_WITH_COMMIT"
+source_database_secret = "routeflow-source-url"
+scheduler_paused       = true
+# billing_account       = "000000-000000-000000" # Optional; grants budget visibility, no spending cap.
+# github_repository     = "owner/RouteFlow"

@@ -1,0 +1,25 @@
+main:
+  steps:
+    - generate_and_relay:
+        call: googleapis.run.v2.projects.locations.jobs.run
+        args:
+          name: projects/${project}/locations/${region}/jobs/${prefix}-produce
+        result: produced
+    - optional_spark:
+        switch:
+          - condition: $${"${spark_runner_url}" != ""}
+            steps:
+              - run_external_spark:
+                  call: http.post
+                  args:
+                    url: "${spark_runner_url}"
+                    auth:
+                      type: OIDC
+                    timeout: 1800
+    - transform_and_reconcile:
+        call: googleapis.run.v2.projects.locations.jobs.run
+        args:
+          name: projects/${project}/locations/${region}/jobs/${prefix}-transform
+        result: transformed
+    - done:
+        return: $${transformed}

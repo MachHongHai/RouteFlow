@@ -1,0 +1,55 @@
+name: RouteFlow validation
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  application:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: {version: '0.11.19', python-version: '3.12'}
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run mypy routeflow
+      - run: uv run pytest tests/unit tests/contract -q
+      - run: docker compose config --quiet
+      - run: docker compose up -d --build
+      - run: uv run pytest tests/integration tests/e2e -q
+        env: {RUN_INTEGRATION: '1'}
+      - run: docker compose exec -T api python -m routeflow.cli dbt
+      - run: docker compose exec -T api dbt compile --project-dir dbt --profiles-dir dbt
+      - if: always()
+        run: docker compose logs --tail 100
+      - if: always()
+        run: docker compose down
+  spark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: {version: '0.11.19', python-version: '3.12'}
+      - run: docker compose up -d --build
+      - run: docker compose --profile spark up -d --build spark-master spark-worker
+      - run: docker compose exec -T api python -m routeflow.generator --orders 8 --seed 42
+      - run: docker compose exec -T api python -m routeflow.cli wait-ingestion
+      - name: Spark numerical and Parquet loading tests
+        run: docker compose --profile spark run --rm --no-deps -e RUN_INTEGRATION=1 --entrypoint python spark-job -m pytest tests/spark -q -o cache_dir=/tmp/pytest-cache
+      - name: Distributed archive to warehouse and dbt
+        run: uv run python scripts/local_pipeline.py --orders 4 --spark
+      - if: always()
+        run: docker compose --profile spark logs --tail 100
+      - if: always()
+        run: docker compose --profile spark down
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: {terraform_version: '1.13.4'}
+      - run: terraform fmt -check -recursive
+        working-directory: infra/terraform
+      - run: terraform init -backend=false
+        working-directory: infra/terraform
+      - run: terraform validate
+        working-directory: infra/terraform

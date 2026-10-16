@@ -1,0 +1,150 @@
+{
+  "driver_daily_distance": [
+    {
+      "name": "business_date",
+      "type": "DATE",
+      "mode": "REQUIRED"
+    },
+    {
+      "name": "driver_id",
+      "type": "STRING",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "gps_points",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "estimated_distance_km",
+      "type": "FLOAT",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "estimated_active_seconds",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "anomalous_segments",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "estimated_average_speed_kmh",
+      "type": "FLOAT",
+      "mode": "NULLABLE"
+    }
+  ],
+  "driver_hourly_activity": [
+    {
+      "name": "business_date",
+      "type": "DATE",
+      "mode": "REQUIRED"
+    },
+    {
+      "name": "driver_id",
+      "type": "STRING",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "hour_utc",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "gps_points",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "estimated_distance_km",
+      "type": "FLOAT",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "estimated_active_seconds",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "anomalous_segments",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    }
+  ],
+  "zone_hourly_driver_activity": [
+    {
+      "name": "business_date",
+      "type": "DATE",
+      "mode": "REQUIRED"
+    },
+    {
+      "name": "zone_id",
+      "type": "STRING",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "hour_utc",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "gps_points",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "estimated_distance_km",
+      "type": "FLOAT",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "estimated_active_seconds",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "anomalous_segments",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "observed_drivers",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    }
+  ],
+  "driver_gps_quality_metrics": [
+    {
+      "name": "business_date",
+      "type": "DATE",
+      "mode": "REQUIRED"
+    },
+    {
+      "name": "driver_id",
+      "type": "STRING",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "valid_points",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "missing_metadata_points",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "anomalous_segments",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "invalid_points",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    }
+  ]
+}
