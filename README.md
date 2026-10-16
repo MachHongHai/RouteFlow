@@ -8,6 +8,10 @@ The business problem is reconstructing trustworthy delivery, payment and driver-
 when events can be duplicated, delayed, malformed or delivered out of order. This repository
 implements recovery paths as working code and verifies final data, not just successful startup.
 
+**Deployment status:** verified locally; not connected to a real GCP project or deployed to GCP.
+Start with the [Vietnamese GCP guide](docs/GCP_GETTING_STARTED_VI.md) and
+[current gaps](docs/PROJECT_GAPS_VI.md) before treating the cloud configuration as operational.
+
 ```mermaid
 flowchart LR
   App[Delivery API + generator] --> PG[(PostgreSQL + transactional outbox)]

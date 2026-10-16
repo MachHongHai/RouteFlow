@@ -47,6 +47,15 @@ variable "monthly_budget_usd" {
   type    = number
   default = 1
 }
+variable "notification_email" {
+  type        = string
+  default     = ""
+  description = "Optional email channel for the Pub/Sub backlog alert. Delivery still needs a cloud smoke test."
+  validation {
+    condition     = var.notification_email == "" || can(regex("^[^ @]+@[^ @]+\\.[^ @]+$", var.notification_email))
+    error_message = "Use an email address or leave empty to omit the notification channel."
+  }
+}
 variable "github_repository" {
   type        = string
   default     = ""

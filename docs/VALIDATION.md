@@ -4,6 +4,9 @@ Environment: Windows/PowerShell, Docker Engine 29.8.0, Python 3.12 via uv 0.11.1
 Terraform was not installed on the host; checks used `hashicorp/terraform:1.13.4` in Docker.
 No GCP account, cloud credential, billable resource or GitHub-hosted workflow was used.
 
+The table below records the original data-pipeline validation. The later cloud-readiness
+follow-up is recorded separately at the end; its additional tests increase the unit test count.
+
 | Executed command / check | Observed result |
 |---|---|
 | `uv sync --frozen` | Dependencies resolved/pinned in `uv.lock`; runtime builds succeeded |
@@ -60,3 +63,23 @@ private Cloud Run push, native Pub/Sub DLQ forwarding/IAM, Workflows/Scheduler, 
 Monitoring/budget resources and query-pruning benchmark execution. Terraform schema validation
 is not a substitute for those cloud smoke tests. A distributed cloud Spark runner and its GCS
 connector must be supplied by an authorized operator; none is provisioned automatically.
+
+## Cloud-readiness follow-up, 2026-10-16
+
+| Executed check | Observed result |
+|---|---|
+| `scripts/gcloud.ps1 --version` | Existing pinned image runs Google Cloud SDK 589.0.0 without a host SDK install |
+| `gcloud auth list` using the D-mounted config | No authenticated account; no login was attempted |
+| Python Google Auth ADC path lookup via `scripts/dev.ps1` | `D:\DevCache\gcloud\application_default_credentials.json` |
+| `uv run python -m routeflow.cloud_preflight` | Exit 1, blocked for missing real config and ADC; cloud/deployment flags false; no GCP request |
+| `uv run pytest tests/unit tests/contract -q` | 29 passed, including 12 cloud preflight cases; online HTTP behavior mocked |
+| `uv run ruff check .` / `uv run mypy routeflow` | Passed; 26 source files checked by mypy |
+| Terraform Docker `fmt -check -recursive` / `validate` | Passed after job dependency and email-channel changes |
+| Deploy configuration gate under Bash | Syntax passed; missing variables rejected, valid variables accepted, invalid environment rejected |
+| PowerShell parser checks / Compose config / API readiness | Passed; existing local API returned ready |
+
+The follow-up did not rerun the existing Spark numerical/Parquet suite or full streaming E2E
+suite because their implementation did not change. Earlier results remain historical evidence,
+not a claim that a new full suite was run. Terraform plan/apply, GCP project/API reads with ADC,
+runtime IAM, cloud writes, alert delivery and GitHub Actions execution remain unverified.
+See [project gaps](PROJECT_GAPS_VI.md) and [first GCP setup](GCP_GETTING_STARTED_VI.md).

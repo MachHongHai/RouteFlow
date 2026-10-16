@@ -34,6 +34,11 @@ cho lệnh, dữ liệu đầu ra và giới hạn bằng chứng; không suy di
 264 điểm GPS và chín dòng tổng hợp driver/date. Cả sáu nhóm reconciliation pass. Không công bố
 coverage hoặc benchmark hiệu năng chưa đo.
 
+Lượt chuẩn bị GCP sau đó chạy 29 unit/contract tests, gồm 12 trường hợp preflight mới; Ruff,
+mypy và Terraform validate pass. Test online dùng HTTP mock; không có đăng nhập hay request GCP
+thật. Không chạy lại Spark/integration E2E trong lượt chỉ sửa công cụ/infra này. Chi tiết ghi
+riêng ở cuối `VALIDATION.md` để tách kết quả mới khỏi snapshot pipeline ban đầu.
+
 ## E. Cloud
 
 Chưa sử dụng GCP, chưa enable API, chưa apply Terraform và chưa tạo tài nguyên billable. Cloud
@@ -53,8 +58,15 @@ Budget chỉ cảnh báo; image lớn có thể vượt dung lượng miễn ph�
 | `docker-compose.yml`, `Dockerfile` | Môi trường local và Spark profile |
 | `infra/terraform/`, `.github/workflows/` | Cloud opt-in, CI và deploy thủ công |
 | `tests/`, `docs/adr/` | Kiểm thử và quyết định kiến trúc |
+| `routeflow/cloud_preflight.py`, `scripts/gcloud.ps1` | Kiểm tra trước deploy và CLI dùng cấu hình ở D |
 
 ## G. Giới hạn còn lại
+
+Danh sách thiếu sót có ưu tiên, tác động và bước tiếp theo được duy trì tại
+[PROJECT_GAPS_VI.md](PROJECT_GAPS_VI.md). Chủ dự án chưa có project GCP; đã thêm hướng dẫn
+[GCP_GETTING_STARTED_VI.md](GCP_GETTING_STARTED_VI.md), gcloud wrapper dùng image có sẵn và
+preflight chỉ đọc. Chưa chạy preflight online với tài khoản thật. Việc kết nối GCP vẫn bị chặn
+ở project/billing/auth và PostgreSQL cloud; không thể giải quyết chỉ bằng code local.
 
 Cloud IAM/API/GCS connector cần kiểm thử với tài khoản được cấp quyền. BigQuery load từng message
 chỉ phù hợp demo nhỏ; workload GPS lớn phải chạy local hoặc bổ sung batch cloud trước khi scale.

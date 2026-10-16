@@ -19,9 +19,10 @@ if ([IO.Path]::GetPathRoot($projectRoot) -ne 'D:\') {
 $env:UV_CACHE_DIR = 'D:\DevCache\uv\cache'
 $env:UV_PYTHON_INSTALL_DIR = 'D:\DevCache\uv\python'
 $env:PIP_CACHE_DIR = 'D:\DevCache\pip'
+$env:CLOUDSDK_CONFIG = 'D:\DevCache\gcloud'
 $env:TEMP = 'D:\RouteFlow-storage\tmp'
 $env:TMP = $env:TEMP
-foreach ($directory in @($env:UV_CACHE_DIR, $env:PIP_CACHE_DIR, $env:TEMP)) {
+foreach ($directory in @($env:UV_CACHE_DIR, $env:PIP_CACHE_DIR, $env:CLOUDSDK_CONFIG, $env:TEMP)) {
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
 }
 

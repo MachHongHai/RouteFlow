@@ -141,9 +141,17 @@ resource "google_billing_budget" "portfolio" {
   threshold_rules { threshold_percent = 0.5 }
   threshold_rules { threshold_percent = 1.0 }
 }
+resource "google_monitoring_notification_channel" "email" {
+  count        = var.notification_email == "" ? 0 : 1
+  display_name = "RouteFlow operator"
+  type         = "email"
+  labels       = { email_address = var.notification_email }
+  depends_on   = [google_project_service.api]
+}
 resource "google_monitoring_alert_policy" "backlog" {
-  display_name = "RouteFlow Pub/Sub processing lag"
-  combiner     = "OR"
+  display_name          = "RouteFlow Pub/Sub processing lag"
+  combiner              = "OR"
+  notification_channels = google_monitoring_notification_channel.email[*].name
   conditions {
     display_name = "Unacked events older than 10 minutes"
     condition_threshold {

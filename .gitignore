@@ -13,6 +13,8 @@ dbt/dbt_packages/
 .terraform/
 *.tfplan
 infra/terraform/terraform.tfvars
+*.auto.tfvars
+*.tfvars.json
 *.egg-info/
 
 *.log

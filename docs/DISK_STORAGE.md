@@ -10,6 +10,7 @@ builds unless the storage checks in the development wrapper pass.
 | uv package cache | `D:\DevCache\uv\cache` |
 | uv managed Python installations | `D:\DevCache\uv\python` |
 | pip cache | `D:\DevCache\pip` |
+| Google Cloud CLI config, logs and ADC | `D:\DevCache\gcloud` |
 | Temporary files from the development wrapper | `D:\RouteFlow-storage\tmp` |
 | Docker Desktop data, images, build cache, volumes and container logs | `E:\DockerDesktop\data` |
 | Active Docker data disk | `E:\DockerDesktop\data\wsl\disk\docker_data.vhdx` |

@@ -1,0 +1,14 @@
+{
+  "project_id": "REPLACE_WITH_YOUR_PROJECT_ID",
+  "region": "us-central1",
+  "environment": "portfolio",
+  "image": "REPLACE_WITH_ARTIFACT_REGISTRY_IMAGE_AT_SHA256_DIGEST",
+  "source_database_secret": "routeflow-source-url",
+  "scheduler_paused": true,
+  "max_instances": 1,
+  "notification_email": "",
+  "billing_account": "",
+  "monthly_budget_usd": 1,
+  "github_repository": "",
+  "spark_runner_url": ""
+}

@@ -4,5 +4,6 @@ environment            = "portfolio"
 image                  = "us-central1-docker.pkg.dev/your-gcp-project/routeflow/app:REPLACE_WITH_COMMIT"
 source_database_secret = "routeflow-source-url"
 scheduler_paused       = true
+# notification_email   = "YOUR_EMAIL" # Optional backlog alerts; test delivery after deployment.
 # billing_account       = "000000-000000-000000" # Optional; grants budget visibility, no spending cap.
 # github_repository     = "owner/RouteFlow"

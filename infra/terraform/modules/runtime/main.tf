@@ -152,6 +152,7 @@ resource "google_cloud_run_v2_job" "job" {
       }
     }
   }
+  depends_on = [google_secret_manager_secret_iam_member.database]
 }
 output "consumer_url" { value = google_cloud_run_v2_service.service["consumer"].uri }
 output "api_url" { value = google_cloud_run_v2_service.service["api"].uri }
