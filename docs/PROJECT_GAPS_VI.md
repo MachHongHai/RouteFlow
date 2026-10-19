@@ -1,5 +1,9 @@
 # Thiếu sót và kế hoạch hoàn thiện
 
+Ngày 2026-10-19 đã bổ sung [console quản trị local](LOCAL_CONSOLE_VI.md): tám dịch vụ,
+dữ liệu chỉ đọc, nhật ký và lưu trữ. Console chưa có đăng nhập/RBAC để truy cập từ xa;
+chỉ dùng trên localhost. Chưa có BI dashboard nghiệp vụ và chưa kết nối GCP.
+
 Đánh giá ngày 2026-10-16. Phân biệt code đã viết, kết quả local đã quan sát và cloud chưa xác minh.
 Không dùng số bài test local để khẳng định GCP sẵn sàng production.
 

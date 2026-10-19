@@ -1,5 +1,27 @@
 # Executed validation — 2026-10-16
 
+## Local operations console — 2026-10-19
+
+- `scripts/dev.ps1 uv run --frozen pytest tests/unit tests/contract -q`: **43 passed**,
+  including 14 console cases for localhost/Host/CSRF restrictions, service allowlists,
+  bounded commands, job completion/concurrency/timeouts and read-only table pagination.
+  Existing upstream Starlette TestClient deprecation warning remains.
+- Ruff passed repository-wide; mypy passed all 27 source files; `node --check` passed
+  console JavaScript; PowerShell parser accepted `scripts/start-console.ps1`.
+- Browser checks: start all eight services; stop/start Relay; restart Relay using the
+  keyboard; Escape cancels confirmation; controls disabled while a job runs; service
+  search; data page 2; actual API logs; storage/restore-proof display. Narrow 390px
+  layout visually checked. Table reads for all seven allowed datasets returned HTTP 200.
+- After controls: all eight services running, Spark master/worker ALIVE (two cores),
+  source orders = fact orders = 34, RAW events = 562, GPS = 264 points / nine daily rows,
+  pending outbox = 0. Deliberate poison DLQ record and historic pipeline failures retained.
+- No container image rebuilt/pulled for this console, no new frontend packages, no GCP
+  calls/deployment. Console runs on loopback port 58090 with cache/temp on D and guarded
+  Docker mutations on E. Business integration/Spark suites below are historical results;
+  they were not rerun for this UI change.
+
+## Original pipeline validation
+
 Environment: Windows/PowerShell, Docker Engine 29.8.0, Python 3.12 via uv 0.11.19.
 Terraform was not installed on the host; checks used `hashicorp/terraform:1.13.4` in Docker.
 No GCP account, cloud credential, billable resource or GitHub-hosted workflow was used.

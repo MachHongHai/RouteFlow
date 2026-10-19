@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="console-token" content="__CONSOLE_TOKEN__">
+  <title>RouteFlow · Quản lý dịch vụ</title>
+  <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/console.css">
+  <script src="/assets/console.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#content">Đến nội dung chính</a>
+<aside class="sidebar">
+  <a class="brand" href="#services">RouteFlow<span>Quản trị local</span></a>
+  <nav aria-label="Điều hướng chính">
+    <a href="#services" data-view="services">Dịch vụ</a>
+    <a href="#data" data-view="data">Dữ liệu</a>
+    <a href="#logs" data-view="logs">Nhật ký</a>
+    <a href="#storage" data-view="storage">Lưu trữ</a>
+  </nav>
+  <div class="environment">localhost:58090<span>GCP chưa kết nối</span></div>
+</aside>
+<main id="content" tabindex="-1">
+  <header class="page-heading">
+    <div><h1 id="page-title">Dịch vụ</h1><p id="engine-status">Đang kết nối Docker…</p></div>
+    <div class="heading-actions"><button id="refresh" class="button secondary">Làm mới</button><button id="start-stack" class="button primary" data-action="start" data-target="stack" disabled>Bật toàn bộ</button></div>
+  </header>
+  <div id="connection-error" class="notice" role="status" hidden></div>
+  <div id="job-banner" class="job-banner" role="status" aria-live="polite" hidden></div>
+  <section id="view-services" class="view">
+    <dl id="metrics" class="metrics" aria-label="Số liệu hệ thống"><div><dt>Dịch vụ đang chạy</dt><dd>—</dd></div></dl>
+    <div class="section-toolbar">
+      <div class="filter-controls"><input id="service-search" type="search" placeholder="Tìm dịch vụ…" aria-label="Tìm dịch vụ"><select id="service-filter" aria-label="Lọc trạng thái"><option value="all">Tất cả trạng thái</option><option value="running">Đang chạy</option><option value="stopped">Chưa chạy</option></select></div>
+      <button class="button danger-quiet" data-action="stop" data-target="stack" disabled>Dừng toàn bộ</button>
+    </div>
+    <div class="service-table" role="table" aria-label="Dịch vụ RouteFlow">
+      <div class="service-head" role="row"><span role="columnheader">Dịch vụ</span><span role="columnheader">Trạng thái</span><span role="columnheader" class="actions-heading">Thao tác</span></div>
+      <div id="all-services" role="rowgroup"><p class="empty-text">Đang đọc trạng thái dịch vụ…</p></div>
+    </div>
+    <div class="section-footer"><span id="updated-at">Đang cập nhật…</span><span>Tự cập nhật mỗi 15 giây</span></div>
+    <details class="other-containers"><summary>Container ngoài RouteFlow <span>Chỉ xem</span></summary><div id="other-containers"></div></details>
+  </section>
+  <section id="view-data" class="view" hidden>
+    <div class="section-toolbar"><div class="filter-controls"><select id="table-select" aria-label="Chọn bảng dữ liệu"></select><button id="load-table" class="button secondary">Tải lại</button></div><span class="meta">Chỉ đọc · 20 dòng / trang</span></div>
+    <div id="data-state" class="data-state" role="status"></div>
+    <div class="table-scroll data-scroll"><table id="data-table"><thead></thead><tbody></tbody></table></div>
+    <div class="section-footer"><span id="data-caption">Chọn một bảng để bắt đầu.</span><div class="pagination"><button id="previous-page" class="button secondary" disabled>Trước</button><span id="page-label">Trang 1</span><button id="next-page" class="button secondary" disabled>Sau</button></div></div>
+  </section>
+  <section id="view-logs" class="view" hidden>
+    <div class="section-toolbar"><div class="filter-controls"><select id="log-select" aria-label="Chọn dịch vụ xem log"></select><button id="load-logs" class="button secondary">Tải log</button><button id="copy-logs" class="button secondary">Sao chép</button></div><span class="meta">150 dòng gần nhất</span></div>
+    <input id="log-search" class="log-search" type="search" placeholder="Lọc nội dung log…" aria-label="Lọc nội dung log">
+    <pre id="log-output" tabindex="0">Đang tải nhật ký…</pre>
+  </section>
+  <section id="view-storage" class="view" hidden>
+    <h2>Ổ đĩa</h2><div id="storage-disks" class="storage-disks"></div>
+    <h2>Vị trí dữ liệu & bản sao</h2><div id="storage-details"></div>
+    <details class="storage-help"><summary>Tạo và kiểm tra bản sao mới</summary><p>Mở PowerShell tại thư mục dự án. Đặt tên thư mục mới cho mỗi bản sao.</p><pre>cd D:\Du-an\RouteFlow
+.\scripts\dev.ps1 uv run python scripts/backup_local.py backup --destination D:\RouteFlow-backups\TEN_BAN_SAO_MOI
+.\scripts\dev.ps1 uv run python scripts/backup_local.py verify --destination D:\RouteFlow-backups\TEN_BAN_SAO_MOI</pre><p>Backup tạm dừng API và ingestion. Verify phục hồi thử vào PostgreSQL riêng.</p></details>
+  </section>
+</main>
+<dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">Dừng dịch vụ?</h2><p id="confirm-description"></p><div class="dialog-actions"><button id="cancel-confirm" class="button secondary" autofocus>Hủy</button><button id="accept-confirm" class="button danger">Dừng dịch vụ</button></div></dialog>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

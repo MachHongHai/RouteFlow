@@ -48,6 +48,10 @@ No Kafka, Kubernetes, always-on cloud worker or paid Spark cluster is required.
 
 ## Run locally
 
+Local management UI: run `.\scripts\start-console.ps1` in PowerShell, then open
+[RouteFlow Console](http://127.0.0.1:58090) to control the eight services, inspect
+read-only data/logs and review storage. See the [console guide](docs/LOCAL_CONSOLE_VI.md).
+
 On this Windows workstation, keep project/cache data on D and Docker bulk data on E. Use the
 guarded PowerShell wrapper in [storage placement](docs/DISK_STORAGE.md) to set cache/temp paths
 and check Docker's destination before starting builds.

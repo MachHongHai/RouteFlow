@@ -1,5 +1,9 @@
 # Local development
 
+For the local service management UI, run `scripts/start-console.ps1` from PowerShell and open
+[127.0.0.1:58090](http://127.0.0.1:58090). See [the console guide](LOCAL_CONSOLE_VI.md)
+for controls, storage placement and access restrictions.
+
 Prerequisites: Docker Engine with Compose v2, at least approximately 8 GiB Docker memory for the
 optional Spark branch, and Python 3.12+ / uv for host tests. No cloud credentials are required.
 All published service ports bind only to loopback. Default database passwords are local demo values.

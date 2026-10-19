@@ -4,6 +4,16 @@ The source repository and its `.venv`, test artifacts, dbt outputs and host cach
 Docker Desktop's bulk storage belongs on E, as requested by the owner. Do not run more image
 builds unless the storage checks in the development wrapper pass.
 
+Audit on 2026-10-19: C had about 27.43 GiB free; the active Docker data disk remained
+33.69 GiB on E, and the normal C Docker directory contained about 25 MiB of logs/sockets,
+with no WSL data disk. The old `Temp\DockerDesktop` and `Temp\DockerDesktopUpdates`
+directories totaled 872.37 MiB of installer/update files dated October 16 or earlier.
+Automatic approval review blocked their deletion; they remain in place. No container volume,
+active VHD, recovery backup or application history was deleted. There was no start-of-UI
+baseline to quantify earlier C growth; modified-file totals are not a measure of new disk use.
+The local console now displays C, D and E free space. Docker host logs and desktop application
+state can still write small files on C; project commands use D temp/cache through the wrapper.
+
 | Data | Physical location |
 |---|---|
 | Repository and project virtual environment | `D:\Du-an\RouteFlow` |
