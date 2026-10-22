@@ -1,7 +1,7 @@
 # Failure probes and recovery
 
 For an empty Docker inventory after a Desktop update, see
-[verified Windows recovery](DOCKER_RECOVERY_VI.md). Do not rebuild over a fresh empty store before
+[Windows recovery runbook](DOCKER_RECOVERY_VI.md). Do not rebuild over a fresh empty store before
 locating the saved VHD. `scripts/backup_local.py` creates quiesced logical backups and verifies
 them by actually restoring into isolated PostgreSQL containers.
 

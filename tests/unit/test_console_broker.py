@@ -10,7 +10,7 @@ from routeflow import console_broker as broker
 from scripts import container_entrypoint
 
 
-@pytest.mark.parametrize("target", ["console", "init", "haizflow-dashboard", "source/stop"])
+@pytest.mark.parametrize("target", ["console", "init", "unrelated-dashboard", "source/stop"])
 def test_broker_cannot_control_other_targets(target: str) -> None:
     with pytest.raises(ValueError):
         broker.operate(target, "start")

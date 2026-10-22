@@ -53,7 +53,7 @@ Open [Console](http://127.0.0.1:58090) or [API docs](http://127.0.0.1:58000/docs
 
 Initialization applies migrations and provisions the local warehouse and emulator. All published ports bind to loopback; Compose credentials are for local demonstration. Containers start explicitly and retain data in named volumes.
 
-For the maintainer's Windows D/E storage policy, use the [guarded workstation setup](docs/DISK_STORAGE.md). Other machines use the portable base Compose file.
+For optional Windows storage placement on D/E, see the [storage guide](docs/DISK_STORAGE.md).
 
 Optional distributed Spark demo (requires [uv](https://docs.astral.sh/uv/)):
 
@@ -95,4 +95,4 @@ docs/            Architecture, operations, decisions, and validation evidence
 
 [Local setup](docs/LOCAL_DEVELOPMENT.md) · [Console guide](docs/LOCAL_CONSOLE_VI.md) · [Recovery](docs/FAILURE_RECOVERY.md) · [GCP status and gaps](docs/PROJECT_GAPS_VI.md)
 
-[Documentation index](docs/README.md) · [Contributing](CONTRIBUTING.md) · [Portfolio and interview notes](docs/PORTFOLIO.md)
+[Documentation index](docs/README.md) · [Contributing](CONTRIBUTING.md)

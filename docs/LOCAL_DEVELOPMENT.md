@@ -11,7 +11,7 @@ the databases. Console builds its application base through a declared Compose bu
 no pre-existing `routeflow-app:local` image or Windows host mounts are required.
 See [the console guide](LOCAL_CONSOLE_VI.md) for controls and access restrictions.
 
-On the maintainer's D/E Windows workstation, use `scripts/start-console.ps1 -Build` and
+For the optional D/E Windows storage policy, use `scripts/start-console.ps1 -Build` and
 `scripts/dev.ps1` instead. The wrapper selects `docker-compose.windows.yml`, checks Docker/WSL
 placement on E, and sets host caches/temp on D. After creating containers, Docker Desktop's
 Start button on the `routeflow` group starts the console too.

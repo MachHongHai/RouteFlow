@@ -4,7 +4,7 @@ Status: integrations are implemented; Terraform is validated offline. No GCP res
 created, no billing APIs were enabled in a real project and no cloud credentials were used.
 Use a separate GCP project for each environment: the dbt dataset IDs are intentionally fixed.
 
-First-time setup on this Windows workstation: [Vietnamese GCP guide](GCP_GETTING_STARTED_VI.md).
+First-time setup with the Windows D/E helpers: [Vietnamese GCP guide](GCP_GETTING_STARTED_VI.md).
 `scripts/gcloud.ps1` uses the existing pinned Docker image and stores CLI/ADC configuration on D.
 `python -m routeflow.cloud_preflight` checks a private `cloud.auto.tfvars.json`; add `--online`
 only after ADC exists to read project, billing and enabled APIs. This check never deploys and does
@@ -15,7 +15,7 @@ smoke test. Billing budgets are configured separately. See [remaining gaps](PROJ
 1. Choose a billing-enabled GCP project and external PostgreSQL source. A TLS connection string
    must use `postgresql+psycopg://...?...sslmode=require`. Create a dedicated database role with
    schema migration privileges for the migrate job; application roles can be narrowed further
-   after bootstrap. The portfolio configuration uses one URL secret for the shared control plane.
+   after bootstrap. The reference configuration uses one URL secret for the shared control plane.
 2. Authenticate as an infrastructure administrator using ADC. Bootstrap only the APIs, Artifact
    Registry and an existing Secret Manager secret. Supply its value through a local protected
    file or console; do not put credentials into Terraform variables or Git history.

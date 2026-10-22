@@ -77,7 +77,7 @@ def inspect_config(config: dict[str, Any]) -> list[Check]:
     require(
         "max_instances",
         type(maximum) is int and maximum >= 1,
-        "Set a positive integer instance limit; the portfolio default is one.",
+        "Set a positive integer instance limit; the default is one.",
     )
     paused = config.get("scheduler_paused", True)
     require("scheduler_type", type(paused) is bool, "scheduler_paused must be a JSON boolean.")

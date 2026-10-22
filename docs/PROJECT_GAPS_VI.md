@@ -1,50 +1,32 @@
-# Thiếu sót và kế hoạch hoàn thiện
+# Trạng thái và giới hạn
 
-Ngày 2026-10-22, [console quản trị local](LOCAL_CONSOLE_VI.md) hỗ trợ dịch vụ, tạo đợt dữ liệu,
-theo dõi pipeline, duyệt schema, SQL chỉ đọc và nhật ký. Cấu hình mặc định portable;
-policy D/E dành cho máy chủ dự án nằm trong override riêng. Console chưa có đăng nhập/RBAC từ xa;
-chỉ dùng trên localhost. Chưa có BI dashboard nghiệp vụ và chưa kết nối GCP.
+Cập nhật ngày 2026-10-22. Pipeline streaming, Spark, dbt và console đã được kiểm thử local;
+CI kiểm tra ứng dụng, Spark và Terraform. [Validation](VALIDATION.md) ghi rõ bằng chứng từng môi trường.
+Triển khai lên GCP thật chưa được xác minh.
 
-Đánh giá ngày 2026-10-16. Phân biệt code đã viết, kết quả local đã quan sát và cloud chưa xác minh.
-Không dùng số bài test local để khẳng định GCP sẵn sàng production.
+Console hỗ trợ điều khiển dịch vụ, tạo dữ liệu, theo dõi batch, duyệt schema, SQL chỉ đọc và
+nhật ký. Console chỉ dùng trên localhost, chưa có đăng nhập/RBAC từ xa. Compose mặc định
+portable; [policy Windows D/E](DISK_STORAGE.md) nằm trong override tùy chọn.
 
-| Ưu tiên | Thiếu sót / trạng thái | Tác động | Bước tiếp theo |
+| Ưu tiên | Giới hạn | Tác động | Bước tiếp theo |
 |---|---|---|---|
-| P0 cloud | Chủ dự án chưa có project GCP; chưa đăng nhập/ADC | Chưa kết nối GCP thật; chưa plan/apply | Làm theo `GCP_GETTING_STARTED_VI.md` |
-| P0 cloud | Chưa có PostgreSQL cloud/TLS/secret thật | Cloud Run không thể dùng database localhost trên laptop | Chọn DB reachable, role và Secret Manager; smoke migration |
-| P0 cloud | BQ/GCS/PubSub/Run mới kiểm tra code/schema; chưa chạy cloud | Chưa biết IAM, OIDC, quota, vùng và retry có hoạt động thực | Chạy ingestion/archive/dbt/reconcile và negative IAM tests |
-| P1 cloud | Cloud load BigQuery theo từng message | Chi phí điều phối/load quota và độ trễ; không phù hợp GPS lưu lượng cao | Thiết kế micro-batch có checkpoint nếu muốn scale; demo cloud giữ nhỏ |
-| P1 cloud | BigQuery RAW có thể có duplicate vật lý | Idempotency ở staging logic khác primary key/Postgres; không bảo đảm RAW unique | Kiểm tra retry/collision thực tế; thêm batch collision audit trước production |
-| P1 cloud | Relay cloud chạy theo job/schedule | Local streaming có thể liên tục; cloud có độ trễ theo lịch | Đo độ trễ; chọn CDC/relay liên tục nếu SLA cần |
-| P1 cloud | Spark cloud chưa có runner/GCS connector | Streaming cloud có thể chạy riêng; GPS cloud chưa có execution path vận hành hoàn chỉnh | Duy trì Spark local; chỉ cấu hình runner cloud khi có nhu cầu/chi phí được duyệt |
-| P1 vận hành | Cảnh báo chưa được gửi thử; email mặc định trống | Có alert policy không có nghĩa operator nhận được cảnh báo | Điền `notification_email`, tạo sự cố thử và kiểm tra khôi phục |
-| P1 vận hành | Đã diễn tập restore local sau sự cố Docker; chưa có HA hoặc backup ngoài máy | Backup/restore 18 bảng nguồn, 17 bảng warehouse đã khớp; chưa có RPO/RTO production | Bổ sung bản sao ngoài máy và diễn tập mất ổ đĩa/production khi cần |
-| P1 release | Đã có GitHub remote; trạng thái CI xem trong Actions, GCP WIF chưa xác minh | Kết quả local và CI cần phân biệt với deploy cloud | Kiểm tra CI của commit mới; chỉ cấu hình `gcp` và deploy khi có project thật |
-| P2 dữ liệu | Spark quét lịch sử và rebuild suffix để bảo toàn chuỗi GPS | Chưa phải incremental tối ưu ở dữ liệu lớn; partition pruning đầu vào còn hạn chế | Cần checkpoint/index theo driver và phạm vi ảnh hưởng trước khi tối ưu |
-| P2 lưu trữ | Parquet generation cũ chưa có GC local tự động | Chạy lại nhiều lần tăng dung lượng Docker trên E | Thiết kế retention bảo vệ run đang dùng/phục hồi, dry-run trước khi xóa |
-| P2 đo lường | Workload hiện nhỏ; chưa có benchmark throughput, cloud cost, coverage % | Không có cơ sở công bố SLA, speedup hay chi phí production | Chạy benchmark có baseline, quy mô và giới hạn rõ ràng |
-| P2 sản phẩm | Dữ liệu tổng hợp, không thanh toán/road matching/shift thật; chưa có BI dashboard | Phù hợp portfolio DE, chưa phải sản phẩm logistics vận hành | Thêm BI trên marts khi cần; không biến estimate GPS thành road distance |
+| P0 cloud | Chưa xác minh project, billing, ADC và Terraform plan/apply thật | Chưa có bằng chứng triển khai GCP hoạt động | Làm theo [hướng dẫn GCP](GCP_GETTING_STARTED_VI.md) và preflight |
+| P0 cloud | Chưa kiểm thử PostgreSQL cloud/TLS/secret | Cloud Run không thể dùng database localhost | Cấu hình DB reachable, role và Secret Manager; smoke migration |
+| P0 cloud | BQ/GCS/Pub/Sub/Run chưa chạy cloud smoke | IAM, OIDC, quota, vùng và retry còn chưa xác minh | Chạy ingestion/archive/dbt/reconcile và negative IAM tests |
+| P1 cloud | BigQuery load từng message; RAW có thể duplicate vật lý | Quota/chi phí tăng ở lưu lượng cao; staging dedup khác Postgres primary key | Micro-batch có checkpoint và collision audit trước khi scale |
+| P1 cloud | Relay chạy theo job/schedule | Có độ trễ theo lịch | Đo độ trễ; chọn relay liên tục/CDC nếu SLA yêu cầu |
+| P1 cloud | Chưa provision Spark runner/GCS connector | GPS cloud chưa có execution path hoàn chỉnh | Cung cấp runner được cấp quyền và kiểm thử Parquet → BQ |
+| P1 vận hành | Alert delivery và GCP WIF chưa được kiểm thử thật | Cấu hình chưa chứng minh cảnh báo/deploy nhận đủ quyền | Kiểm tra notification channel và deploy environment `gcp` |
+| P1 vận hành | Restore đã thử local; chưa có HA, backup ngoài máy và RPO/RTO production | Chưa bảo vệ được tình huống mất máy/ổ đĩa | Bản sao ngoài máy và diễn tập phục hồi định kỳ |
+| P2 dữ liệu | Spark quét lịch sử và rebuild suffix để bảo toàn chuỗi GPS | Chi phí tăng khi dữ liệu lớn | Checkpoint/index theo driver và phạm vi ảnh hưởng |
+| P2 lưu trữ | Parquet generation cũ chưa có GC local tự động | Chạy lặp tăng dung lượng Docker | Retention bảo vệ run đang dùng/phục hồi, dry-run trước khi xóa |
+| P2 đo lường | Workload nhỏ; chưa đo throughput, cloud cost, coverage % | Chưa có cơ sở công bố SLA, speedup hoặc chi phí production | Benchmark có baseline, quy mô và giới hạn rõ ràng |
+| P2 sản phẩm | Dữ liệu tổng hợp; không có thanh toán thật, road matching, shift hoặc BI dashboard | Chỉ mô phỏng nghiệp vụ logistics | Bổ sung tích hợp thực khi cần; giữ GPS estimate tách khỏi road distance |
 
-## Đã hoàn thiện trong lượt rà soát này
+## Điều kiện xác minh cloud end-to-end
 
-- Thêm gcloud wrapper dùng image có sẵn, khóa digest, không pull tự động; cấu hình/ADC ở D,
-  dữ liệu Docker và cache container ở E.
-- Thêm preflight offline và GET-only online, kiểm tra placeholder/digest/project/ADC,
-  đọc project/billing/API có phân trang; không báo deploy thành công từ kiểm tra tĩnh.
-- Bổ sung dependency để Cloud Run Jobs được tạo sau grant Secret Manager cho runtime identity.
-- Thêm email notification channel tùy chọn và nối với backlog alert policy.
-- Chuyển kiểm tra biến deploy vào step sau khi environment `gcp` được chọn; trước đó điều kiện
-  ở job có thể bỏ qua workflow khi biến chỉ được cấu hình ở environment.
-- Giữ hướng dẫn tài khoản, thiếu sót và bằng chứng test trong repository để không mất ngữ cảnh.
-
-Những thay đổi Terraform/GitHub ở trên chưa được apply/chạy trên GCP/GitHub. Preflight online
-được kiểm tra bằng HTTP mock; chưa có credentials để xác nhận project thật. Các thay đổi này
-chuẩn bị cho lần triển khai đầu, chưa phải bằng chứng đã loại bỏ mọi rủi ro cloud.
-
-## Tiêu chí gọi là cloud end-to-end đã xác minh
-
-Project/billing/auth pass; Terraform plan đã xem và apply thành công; service account thật
-ghi GCS/BQ đúng quyền; Pub/Sub push có OIDC và bị từ chối nếu sai danh tính; tạo đơn → archive →
-RAW → dbt → reconciliation pass; retry/replay không làm trùng fact; test DLQ và email alert;
-ghi thời gian/chi phí quan sát. Nếu cần GPS cloud, Spark runner phải xử lý thật và nạp được
-Parquet vào BQ trước dbt. Scheduler chỉ bật sau các bước này.
+Project/billing/auth hợp lệ; Terraform plan đã xem và apply thành công; service account ghi
+GCS/BQ đúng quyền; Pub/Sub push dùng OIDC và từ chối danh tính sai; đơn mới đi qua archive,
+RAW, dbt và reconciliation; retry/replay không làm trùng fact; DLQ và email alert được thử.
+Ghi lại thời gian/chi phí quan sát. Nếu dùng GPS cloud, Spark phải xử lý thật và nạp Parquet
+vào BQ trước dbt. Chỉ bật Scheduler sau khi các kiểm tra này hoàn tất.

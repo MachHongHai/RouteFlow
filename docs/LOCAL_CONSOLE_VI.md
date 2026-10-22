@@ -1,10 +1,10 @@
 # Giao diện quản lý local
 
-Trên máy khác dùng Docker Linux containers, khởi tạo bằng
+Với Docker Linux containers, khởi tạo bằng
 `docker compose --profile console up -d --build`, rồi mở localhost:58090. Cấu hình mặc định
 dùng Docker volumes, không yêu cầu ổ D/E hay thư mục Docker settings của Windows.
-Compose tự build image nền cho console. Các hướng dẫn PowerShell D/E bên dưới dành riêng
-cho máy Windows của chủ dự án; wrapper tự chọn `docker-compose.windows.yml` và giữ kiểm tra E.
+Compose tự build image nền cho console. Các hướng dẫn PowerShell bên dưới yêu cầu
+[policy Windows D/E](DISK_STORAGE.md); wrapper chọn `docker-compose.windows.yml` và kiểm tra E.
 
 Trong Docker Desktop, bấm **Start** cho nhóm **routeflow**, mở rộng nhóm rồi bấm cổng
 **58090:8080** của **console**. Hoặc mở [RouteFlow Console](http://127.0.0.1:58090).
@@ -15,10 +15,9 @@ cả UI và workload. Có thể chỉ Start riêng console, rồi dùng **Bật 
 **Dừng toàn bộ** trong UI giữ console hoạt động; Stop nhóm trong Docker dừng cả console.
 Tám dịch vụ dữ liệu và console là chín container chạy lâu dài; init chỉ chạy thiết lập rồi thoát 0.
 
-Thiết lập lần đầu hoặc cập nhật code trên máy Windows này:
+Thiết lập lần đầu hoặc cập nhật code với policy Windows D/E, từ thư mục repository:
 
 ```powershell
-cd D:\Du-an\RouteFlow
 .\scripts\start-console.ps1 -Build
 .\scripts\dev.ps1 docker compose --profile spark up -d --no-build --pull never
 ```
@@ -53,10 +52,9 @@ Không có Docker TCP API không xác thực.
 
 Cổng web chỉ publish 127.0.0.1:58090. Host/CSRF/token được kiểm tra; không mở cổng ra LAN
 hoặc Internet. Đây là công cụ quản trị local, chưa có đăng nhập/RBAC nhiều người. Container
-UI có filesystem chỉ đọc và tmpfs giới hạn trên E. Cache/temp host của wrapper ở D.
-Nút thay đổi trạng thái kiểm tra cấu hình Docker đang ghim E từ mount settings chỉ đọc.
-Kiểm tra E áp dụng khi dùng policy workstation. Policy portable dùng nơi lưu trữ volumes
-của Docker Engine được chọn; không khẳng định dữ liệu trên máy khác nằm ở E.
+UI có filesystem chỉ đọc và tmpfs giới hạn. Với policy Windows D/E, tmpfs thuộc Docker trên E,
+cache/temp host của wrapper ở D. Nút thay đổi trạng thái kiểm tra cấu hình ghim E từ mount
+settings chỉ đọc. Policy portable dùng nơi lưu trữ của Docker Engine được chọn.
 GCP chưa kết nối; console không triển khai hay quản lý cloud.
 
 Trang Tạo dữ liệu cập nhật mỗi 2 giây khi hiển thị. Chọn một đợt để theo dõi số liệu
@@ -74,7 +72,7 @@ Thông tin mã đợt và danh sách sự kiện được thu gọn để ưu ti
 SQL Editor kết nối bằng role riêng `routeflow_console_reader`, không phải tài khoản
 owner chạy nghiệp vụ. Role được cấp SELECT trên bảng/view của các schema ứng dụng;
 các bảng tạo sau đó bởi owner cũng được cấp quyền đọc. Key đăng nhập ngẫu nhiên nằm
-trong volume console trên E, không gửi ra trình duyệt. Kết nối bật transaction chỉ đọc;
+trong volume console, không gửi ra trình duyệt. Kết nối bật transaction chỉ đọc;
 SQL chỉ chạy trong một SELECT con và dùng extended protocol. Không hỗ trợ ghi dữ liệu,
 DDL hoặc nhiều câu lệnh trong một lần chạy. Tối đa hai truy vấn đồng thời, timeout SQL
 5 giây (watchdog 6 giây), tối đa 500 dòng / 80 cột; dữ liệu lớn và ô dài được rút gọn có
@@ -85,7 +83,7 @@ Nhánh GPS hiển thị số điểm RAW của đợt, lần chạy Spark gần 
 trong hệ thống. **Spark vẫn chạy bằng job riêng**, không tự chạy khi generate hoặc Start;
 trạng thái Spark gần nhất không chứng minh GPS vừa tạo đã được xử lý.
 
-Lịch sử tạo dữ liệu nằm trong volume `routeflow_console-state` trên đĩa Docker E.
+Lịch sử tạo dữ liệu nằm trong volume `routeflow_console-state` trên đĩa Docker.
 Console hiện 25 đợt gần nhất, giữ metadata cũ để chống gửi lại yêu cầu trùng. Cùng mã yêu
 cầu trả lại đợt cũ; bấm tạo đợt mới sẽ thêm đơn mới kể cả khi dùng cùng seed. Khi console
 khởi động lại, đợt đang chạy được đánh dấu gián đoạn, không tự sinh lại; dữ liệu đã commit

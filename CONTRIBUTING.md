@@ -20,9 +20,9 @@ Apply formatting with `uv run ruff format .` and `npm run format`. `.editorconfi
 defines encoding, newlines, and indentation. Follow the [testing guide](docs/TESTING.md)
 for infrastructure-dependent suites; record actual outcomes in [validation](docs/VALIDATION.md).
 
-On the maintainer's Windows workstation, run Python/Docker commands through
-`scripts/dev.ps1` to keep cache/temp on D and enforce Docker storage on E.
-For npm commands, set `npm_config_cache=D:\DevCache\npm` and TEMP/TMP on D.
+For the optional Windows D/E setup, run Python/Docker commands through `scripts/dev.ps1`
+to keep cache/temp on D and enforce Docker storage on E. See the
+[storage guide](docs/DISK_STORAGE.md), including npm cache configuration.
 
 ## Source boundaries
 
@@ -45,6 +45,6 @@ database dumps, Terraform state, caches, or local build logs.
 
 ## Scope and evidence
 
-Add meaningful tests for changed behavior. Run the relevant checks, then stop repeating successful
-tests unless code changes or a failure warrants it. Keep README concise; place detailed procedures
-in `docs/`. Local results do not prove cloud deployment, production capacity, or cost savings.
+Include tests for changed behavior and the relevant check results with contributions.
+Keep the README focused on setup and capabilities; place detailed procedures in `docs/`.
+Local results do not prove cloud deployment, production capacity, or cost savings.

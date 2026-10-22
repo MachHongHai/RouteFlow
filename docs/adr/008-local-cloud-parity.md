@@ -4,7 +4,7 @@ Status: accepted and implemented.
 
 ## Context
 
-A portfolio should run without a cloud account while retaining deployable GCP integrations.
+Local development must work without a cloud account while retaining deployable GCP integrations.
 
 ## Decision
 
@@ -20,4 +20,4 @@ Postgres RAW uniqueness differs from BigQuery append loads; local tests do not e
 
 ## Consequences
 
-The report distinguishes locally tested behavior from implemented cloud code; deployment stays opt-in.
+Validation documents distinguish locally tested behavior from implemented cloud code; deployment stays opt-in.

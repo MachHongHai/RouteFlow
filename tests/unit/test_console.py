@@ -39,7 +39,7 @@ def test_mutations_require_same_origin_and_session_token(client: TestClient) -> 
     assert response.status_code == 403
 
 
-@pytest.mark.parametrize("target", ["haizflow-dashboard", "init", "spark-job", "source;whoami"])
+@pytest.mark.parametrize("target", ["unrelated-dashboard", "init", "spark-job", "source;whoami"])
 def test_only_approved_services_can_be_controlled(client: TestClient, target: str) -> None:
     response = client.post(
         f"/api/actions/{target}",
@@ -91,7 +91,7 @@ def test_start_is_bounded_and_preserves_volumes(monkeypatch: Any) -> None:
         "source",
     ]
     with pytest.raises(HTTPException):
-        console.action_command("ecommerce", "restart")
+        console.action_command("another-project", "restart")
 
 
 def test_concurrent_actions_are_rejected(client: TestClient, monkeypatch: Any) -> None:

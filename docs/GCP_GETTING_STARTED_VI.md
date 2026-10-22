@@ -1,29 +1,27 @@
 # Kết nối GCP lần đầu cho RouteFlow
 
-Trạng thái kiểm tra ngày 2026-10-16: chưa có project GCP do chủ dự án cung cấp, chưa đăng nhập,
-chưa có ADC, chưa chạy Terraform plan/apply hay cloud smoke test. Local streaming, Spark và dbt
-đã được kiểm thử; điều đó không chứng minh cloud hoạt động.
+Triển khai GCP thật chưa được xác minh. Hướng dẫn này chuẩn bị project, billing, xác thực và
+kiểm tra trước triển khai. Kết quả local streaming, Spark và dbt nằm trong
+[validation](VALIDATION.md); chúng không thay thế cloud smoke test.
 
 ## 1. Tạo project trên trình duyệt
 
 1. Đăng nhập [Google Cloud Console](https://console.cloud.google.com/).
 2. Bấm bộ chọn project ở thanh trên, chọn **New Project** / **Create project**.
-3. Project name: `RouteFlow Portfolio`. Giữ Project ID do Google gợi ý hoặc chọn một ID riêng.
-   Ví dụ minh họa: `routeflow-portfolio-123456`; ID này chưa được tạo hay kiểm tra còn trống.
+3. Project name: `RouteFlow Demo`. Giữ Project ID do Google gợi ý hoặc chọn một ID riêng.
+   Ví dụ minh họa: `routeflow-demo-123456`; ID này chưa được tạo hay kiểm tra còn trống.
 4. Chọn **No organization** nếu có; nếu tài khoản trường/công ty bắt buộc organization,
    cần quản trị viên cấp quyền tạo project. Bấm **Create**, rồi chọn project vừa tạo.
 5. Ghi lại **Project ID**, không nhầm với Project name hay Project number. Project ID không đổi
    được sau khi tạo. Xem [hướng dẫn Google](https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects).
 
-Không nhập mật khẩu, số thẻ hay khóa service account vào repository hoặc cuộc trò chuyện.
-Chỉ Project ID là cần thiết để chuẩn bị cấu hình ở bước tiếp theo.
+Giữ mật khẩu, thông tin billing và khóa service account ngoài repository.
+Dùng Project ID để chuẩn bị cấu hình ở bước tiếp theo.
 
 ## 2. Kiểm tra Billing và đặt budget
 
 Trong Console, mở **Billing** và kiểm tra project được liên kết với tài khoản billing phù hợp.
-Nếu đủ điều kiện, có thể đăng ký Free Trial theo màn hình Google. Tại ngày kiểm tra, Google
-công bố credit 300 USD trong 90 ngày cho khách đủ điều kiện; không coi đây là ưu đãi chắc chắn
-của mọi tài khoản. Xem điều kiện trực tiếp tại
+Nếu dùng Free Trial, kiểm tra điều kiện và hạn mức áp dụng trực tiếp tại
 [Google Cloud Free Program](https://docs.cloud.google.com/free/docs/free-cloud-features).
 
 Trong **Billing → Budgets & alerts**, tạo budget chỉ áp dụng cho project RouteFlow, chọn mức
@@ -34,10 +32,10 @@ không tự ngắt dịch vụ hoặc chặn tiền phát sinh. Xem
 Chưa tạo Cloud SQL, VM hoặc Dataproc ở bước này. Mặc định Terraform giữ Scheduler paused,
 Cloud Run scale-to-zero, tối đa một instance; cấu hình đó không bảo đảm hóa đơn bằng 0.
 
-## 3. Đăng nhập trên máy này, lưu cấu hình ở D
+## 3. Đăng nhập với helper Windows D/E
 
-Docker đã chuyển sang E. `scripts/gcloud.ps1` tái sử dụng image Google Cloud CLI có sẵn,
-khóa bằng digest và dùng `--pull=never`; không tải SDK mới hay cài vào C. File cấu hình,
+Helper yêu cầu [cấu hình lưu trữ D/E](DISK_STORAGE.md). `scripts/gcloud.ps1` dùng image Google
+Cloud CLI khóa digest với `--pull=never`; image cần có sẵn trong Docker. File cấu hình,
 log CLI và credentials được bind mount tại `D:\DevCache\gcloud`. Phần ghi tạm trong container
 nằm trong Docker trên E. Cách dùng container được Google mô tả tại
 [Google Cloud CLI Docker](https://docs.cloud.google.com/sdk/docs/downloads-docker).
@@ -45,7 +43,6 @@ nằm trong Docker trên E. Cách dùng container được Google mô tả tại
 Mở PowerShell của bạn và chạy, thay `YOUR_PROJECT_ID` bằng ID thật:
 
 ```powershell
-Set-Location D:\Du-an\RouteFlow
 .\scripts\gcloud.ps1 --version
 .\scripts\gcloud.ps1 auth login
 .\scripts\gcloud.ps1 config set project YOUR_PROJECT_ID
@@ -55,15 +52,14 @@ Set-Location D:\Du-an\RouteFlow
 
 Lệnh login tự thêm `--no-launch-browser`. Mở URL do gcloud đưa ra trong trình duyệt,
 chọn đúng tài khoản, đồng ý quyền sau khi đọc, rồi dán authorization code **vào terminal đang
-đợi**, không gửi code vào chat. Hai lần login có mục đích khác nhau: `auth login` cho gcloud;
+đợi**. Hai lần login có mục đích khác nhau: `auth login` cho gcloud;
 `application-default login` cho thư viện Python và Terraform. Google mô tả luồng này tại
 [ADC login](https://docs.cloud.google.com/sdk/gcloud/reference/auth/application-default/login).
 
 Nếu quota-project báo thiếu quyền hoặc API chưa bật, giữ nguyên thông báo để xử lý IAM/API;
 không tải khóa JSON service account để né lỗi. File ADC dự kiến nằm ở
 `D:\DevCache\gcloud\application_default_credentials.json`. `scripts/dev.ps1` đặt
-`CLOUDSDK_CONFIG` đúng vị trí này cho Python; biến user cùng tên cũng đã được cấu hình trên máy.
-Không commit hay gửi nội dung file ADC.
+`CLOUDSDK_CONFIG` đúng vị trí này cho Python. Không commit file ADC.
 
 ## 4. Kiểm tra kết nối bằng thao tác chỉ đọc
 
@@ -111,7 +107,7 @@ Mã thoát 1 nghĩa là có blocker; mã 0 chỉ có nghĩa các kiểm tra đã
 | Monitoring | Điền email backlog và thử thông báo; budget ở Billing là cấu hình riêng |
 | Cloud smoke tests | Migration, GCS archive, Pub/Sub OIDC/private invocation, BigQuery load, dbt và reconciliation |
 | Cloud Spark | Chọn runner/cluster được cấp quyền + GCS connector; hiện không được provision tự động |
-| GitHub | Tạo remote, push, cấu hình environment `gcp` và WIF, chạy workflow thực tế |
+| GitHub | Cấu hình environment `gcp` và WIF cho repository triển khai, chạy workflow thực tế |
 
 Lộ trình triển khai chi tiết: [CLOUD_DEPLOYMENT.md](CLOUD_DEPLOYMENT.md). Nếu chưa có PostgreSQL
 cloud, có thể tiếp tục demo toàn bộ trên local; chưa thể coi Terraform là một triển khai end-to-end

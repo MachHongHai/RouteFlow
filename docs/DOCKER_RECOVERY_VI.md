@@ -1,92 +1,71 @@
-# Phục hồi sau cập nhật Docker Desktop
+# Phục hồi Docker Desktop và kiểm tra backup
 
-## Sự cố và nguyên nhân đã quan sát
+Danh sách container trống sau cập nhật có thể do context hoặc kho WSL được chọn thay đổi.
+Cần xác định ổ dữ liệu đang dùng trước khi tạo lại stack. Hướng dẫn D/E bên dưới áp dụng cho
+[cấu hình Windows tùy chọn](DISK_STORAGE.md); Compose mặc định không yêu cầu các ổ này.
 
-Ngày 2026-10-16, Docker Desktop cập nhật từ 4.91 sang 4.95 (Engine 29.8.2). Engine mới hiển thị
-0 container/image/volume vì dùng kho WSL mới mặc định trên C. Ổ cũ 36.170.629.120 byte trên E
-vẫn còn nguyên. Cấu hình trước đó chỉ đặt `DataFolder` và junction ở Desktop root; chưa đặt
-đúng khóa chọn ổ WSL là **`CustomWslDistroDir`**. Vì vậy cấu hình chuyển ổ trước đó chưa đủ bền
-qua cập nhật. Không dùng việc thấy danh sách trống để kết luận dữ liệu đã bị xóa.
+## Xác định kho dữ liệu
 
-Docker maintainer mô tả khóa này và việc giữ bản sao VHD trước khi đổi đường dẫn tại
-[issue #14129](https://github.com/docker/for-win/issues/14129). Trên máy này, kết quả được xác minh
-trực tiếp bằng log backend, WSL registration, inventory và dữ liệu database sau phục hồi.
+1. Kiểm tra `docker context ls` và context Linux cần dùng, thường là `desktop-linux`.
+2. Kiểm tra **Disk image location** trong Docker Desktop và vị trí VHD cũ. Danh sách trống
+   không đủ để kết luận dữ liệu đã bị xóa.
+3. Thoát hoàn toàn Docker Desktop và dừng WSL trước khi sao chép hay thay thế VHD.
+   Việc dừng WSL ảnh hưởng các distribution đang chạy.
+4. Sao lưu `settings-store.json`, thông tin đăng ký WSL và các VHD vào thư mục mới.
+   So sánh kích thước và SHA256 của bản sao trước khi thay đổi cấu hình.
+5. Với helper D/E, kiểm tra `CustomWslDistroDir` trong
+   `$env:APPDATA\Docker\settings-store.json` trỏ tới `E:\DockerDesktop\data\wsl`.
+   Giữ các thiết lập khác. `DataFolder` không thay thế kiểm tra vị trí WSL này.
 
-Đã sửa `CustomWslDistroDir=E:\DockerDesktop\data\wsl`, giữ `DataFolder` riêng, phục hồi runtime
-WSL dùng E, và thay Desktop root junction bằng thư mục Windows thông thường cho log/socket nhỏ.
-Junction cũ và các socket cũ chỉ được đổi tên để giữ lại. Các ổ trống mới tạo trên C được chuyển
-sang thư mục recovery trên E; không ghi đè ổ dữ liệu cũ. Các dự án ecommerce vẫn giữ trạng thái
-dừng như trước; không chạy migration hoặc generator vào dữ liệu của những dự án đó.
+Docker có thảo luận về thiết lập WSL và việc giữ bản sao trước khi đổi đường dẫn tại
+[issue #14129](https://github.com/docker/for-win/issues/14129).
+Không factory reset, prune hay ghi đè VHD để xử lý một kho chưa xác định.
+Phân biệt runtime `main\ext4.vhdx` với bulk data `disk\docker_data.vhdx`;
+không unregister distribution khi chưa có bản sao và chưa biết nó chứa dữ liệu gì.
 
-## Các bản sao hiện có
+## Khởi động và đối chiếu
 
-| Bản sao | Vị trí / bằng chứng |
-|---|---|
-| Ổ Docker mới nhất trước khi sửa | `E:\DockerDesktop\recovery-20261016-update\pre-recovery-docker_data.vhdx` |
-| SHA256/byte proof của snapshot | `E:\DockerDesktop\recovery-20261016-update\snapshot-proof.json` |
-| Cấu hình/WSL trước khi sửa | Cùng thư mục recovery trên E |
-| Các bản sao từ lần chuyển ổ đầu | `E:\DockerDesktop\migration-backups-20261016` |
-| Backup logic RouteFlow độc lập với Docker VHD | `D:\RouteFlow-backups\recovered-after-docker-update-20261016` |
-
-Snapshot VHD mới nhất được copy khi Desktop/WSL đã dừng và SHA256 toàn bộ khớp với ổ nguồn
-trước khi đổi cấu hình. Các bản cũ không được xóa hoặc ghi đè trong quá trình phục hồi.
-Backup cùng máy không bảo vệ khỏi việc cả máy hoặc cả ổ D/E bị hỏng.
-
-## Kiểm tra trước khi cập nhật hoặc khi danh sách bỗng trống
-
-1. Kiểm tra `docker context ls` và dùng đúng `desktop-linux`.
-2. Dừng Desktop hoàn toàn trước khi đụng vào file VHD. Không factory reset, prune hoặc tạo lại
-   volume khi chưa xác định được ổ dữ liệu đang dùng.
-3. Giữ bản sao `settings-store.json`, WSL registration và VHD. Kiểm tra ổ gốc E còn tồn tại.
-4. Trong `%APPDATA%\Docker\settings-store.json`, giữ các thiết lập khác và xác nhận:
-
-```json
-"CustomWslDistroDir": "E:\\DockerDesktop\\data\\wsl"
-```
-
-5. Dùng helper để khởi động; helper giữ socket cũ và kiểm tra registration sau khởi động:
+Khi đã xác nhận đúng kho trên E, chạy từ thư mục repository:
 
 ```powershell
-Set-Location D:\Du-an\RouteFlow
 .\scripts\start-docker.ps1
 .\scripts\dev.ps1 docker ps -a
 .\scripts\dev.ps1 docker volume ls
-.\scripts\dev.ps1 docker compose --profile spark up -d --no-build
 ```
 
-Nếu ổ E không còn nguyên, không tiếp tục các lệnh tạo volume. Giữ lại VHD hiện tại dưới tên khác,
-phục hồi từ snapshot đã kiểm tra khi Desktop/WSL dừng, rồi kiểm tra lại inventory và database.
-Không unregister một distribution chứa dữ liệu nghiệp vụ nếu chưa có bản sao và chưa phân biệt
-runtime `ext4.vhdx` với bulk data `docker_data.vhdx`.
+Đối chiếu inventory với bản ghi trước đó. Khi container/volume đúng đã xuất hiện, có thể
+khởi động stack hiện có, không rebuild hay pull:
+
+```powershell
+.\scripts\dev.ps1 docker compose --profile console --profile spark up -d --no-build --pull never
+```
+
+Kiểm tra API readiness, số bản ghi nguồn/RAW/mart và reconciliation. Không chạy generator
+để thay thế bằng chứng dữ liệu cũ. Nếu ổ cũ hỏng hoặc mất, giữ nguyên bản hiện tại và phục hồi
+từ snapshot đã xác minh khi Desktop/WSL đã dừng.
 
 ## Backup logic và diễn tập restore
 
-Tạo một thư mục đích mới trên D mỗi lần backup:
+Tạo một thư mục đích mới trên D cho mỗi snapshot:
 
 ```powershell
-.\scripts\dev.ps1 uv run python scripts/backup_local.py backup --destination D:\RouteFlow-backups\YOUR_NEW_SNAPSHOT
-.\scripts\dev.ps1 uv run python scripts/backup_local.py verify --destination D:\RouteFlow-backups\YOUR_NEW_SNAPSHOT
+$snapshotPath = 'D:\RouteFlow-backups\YOUR_NEW_SNAPSHOT'
+.\scripts\dev.ps1 uv run python scripts/backup_local.py backup --destination $snapshotPath
+.\scripts\dev.ps1 uv run python scripts/backup_local.py verify --destination $snapshotPath
 ```
 
-Backup yêu cầu core stack chạy và không có Spark job đang thực thi. Nó tạm dừng API, chờ ingestion
-barrier, dừng relay/consumer, tạo hai `pg_dump -Fc`, backup archive/lake, rồi khởi động lại đúng
-các dịch vụ đã dừng trong `finally`. Hash nội dung tất cả base table trước/sau phải khớp để
-backup được chấp nhận. Không chạy generator/dbt/Spark hay ghi database từ bên ngoài trong lúc này.
+Backup yêu cầu core stack đang chạy và không có Spark job. Công cụ tạm dừng API, chờ ingestion
+barrier, dừng relay/consumer, tạo hai `pg_dump -Fc` cùng archive/lake tar, rồi khởi động lại
+các dịch vụ đã dừng trong `finally`. Fingerprint nội dung các base table trước/sau phải khớp.
+Không chạy generator, dbt, Spark hoặc ghi database từ bên ngoài trong thời gian backup.
 
-`manifest.json` ghi SHA256 và nội dung bảng ở thời điểm backup; không có nghĩa đã restore thử.
-`verify` kiểm tra SHA256, tạo PostgreSQL 16 tạm với `--network none`, không host port và PGDATA
-trên tmpfs, `pg_restore --exit-on-error`, rồi so sánh số dòng và fingerprint nội dung mọi base table.
-Nó giải nén hai tar vào thư mục mới trên D bằng bộ lọc an toàn. Container kiểm tra được tự xóa
-khi dừng; volume database đang chạy không bị thay thế. Chỉ khi mọi bước pass mới ghi
-`restore-verification.json` với `restore_verified=true`.
+`manifest.json` ghi SHA256 và nội dung bảng tại thời điểm backup; nó chưa chứng minh restore
+thành công. Lệnh `verify` kiểm tra SHA256, tạo PostgreSQL 16 tạm với `--network none`, không
+publish port, PGDATA trên tmpfs và dùng `pg_restore --exit-on-error`. Sau đó công cụ so sánh
+số dòng/fingerprint của mọi base table và giải nén archive/lake vào thư mục mới bằng bộ lọc an toàn.
+Container kiểm tra được xóa khi dừng; database đang chạy không bị thay thế.
+Chỉ khi các bước đều pass mới ghi `restore-verification.json` với `restore_verified=true`.
 
-Kết quả thực thi trên backup đã phục hồi:
-
-- 18 bảng nguồn và 17 bảng warehouse restore thành công, tất cả row fingerprints khớp.
-- Archive giải nén 563 file; data lake giải nén 89 file.
-- 34 đơn nguồn = 34 fact orders; 562 RAW events; 9 dòng GPS daily, 264 điểm,
-  60.639007624322296 km ước tính; khớp mốc trước cập nhật.
-- 17 container cũ, 9 volume và toàn bộ image/tag khớp inventory; các container ecommerce còn dừng.
-
-Diễn tập này xác minh backup RouteFlow; chưa chạy smoke nghiệp vụ hoặc restore logic cho các
-database ecommerce. Chúng được giữ trong VHD đầy đủ và volume cũ đã xuất hiện trở lại.
+Đây là diễn tập xác minh backup, không phải lệnh ghi đè database đang chạy.
+Kết quả đã ghi nhận nằm trong [validation](VALIDATION.md). Backup cùng máy không bảo vệ khỏi
+mất máy hoặc hỏng toàn bộ ổ đĩa; cần thêm bản sao ngoài máy và chính sách RPO/RTO cho production.

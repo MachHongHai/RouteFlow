@@ -4,7 +4,7 @@ Status: accepted and implemented.
 
 ## Context
 
-The portfolio needs a cloud-native event transport with a credential-free local path.
+The platform needs a cloud-native event transport with a credential-free local path.
 
 ## Decision
 

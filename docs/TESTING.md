@@ -23,7 +23,7 @@ npm run check
 ```
 
 This checks frontend formatting and JavaScript syntax. Use `npm run format` to apply formatting.
-On the maintainer workstation, set `npm_config_cache=D:\DevCache\npm` and TEMP/TMP on D.
+For the optional Windows storage policy, set `npm_config_cache=D:\DevCache\npm` and TEMP/TMP on D.
 The base Compose configuration is portable; CI also builds and checks the console without
 Windows host mounts. D/E enforcement is covered separately by workstation policy tests.
 
@@ -63,5 +63,5 @@ docker run --rm -v "${PWD}/infra/terraform:/workspace" -w /workspace hashicorp/t
 
 No credentials are required for these checks. Provider-schema validation does not prove cloud IAM,
 regional availability, service-agent creation or real API integration. GitHub CI repeats application,
-dbt, Docker, Spark and Terraform checks; its hosted execution has not been claimed locally.
-See `VALIDATION.md` for observed command results, and `ENGINEERING_REPORT.md` for acceptance limits.
+dbt, Docker, Spark and Terraform checks. See [validation evidence](VALIDATION.md) for recorded
+results and [project gaps](PROJECT_GAPS_VI.md) for unverified deployment requirements.
