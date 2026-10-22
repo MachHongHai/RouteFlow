@@ -6,7 +6,6 @@ const locale = new Intl.NumberFormat("vi-VN");
 const number = (value) => value == null ? "—" : locale.format(Number(value));
 const escape = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const date = (value, full=false) => value ? new Intl.DateTimeFormat("vi-VN", full ? {dateStyle:"short",timeStyle:"short"} : {hour:"2-digit",minute:"2-digit",second:"2-digit"}).format(new Date(value)) : "—";
-const bytes = (value) => value == null ? "—" : `${new Intl.NumberFormat("vi-VN",{maximumFractionDigits:1}).format(value / 1024 ** 3)} GiB`;
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve,ms));
 async function api(path, options={}) {
   const response = await fetch(path, {cache:"no-store", ...options, headers:{"Content-Type":"application/json","X-Console-Token":token,...options.headers}});
@@ -58,7 +57,6 @@ function renderServices() {
     const replacement=[...list.querySelectorAll('button,a')].find(element=>element.getAttribute('aria-label')===focusLabel && focusKey.every(([key,value])=>element.dataset[key]===value));
     replacement?.focus({preventScroll:true});
   }
-  $('#other-containers').innerHTML=data.others.length ? data.others.map(row=>`<div class="other-row"><div>${escape(row.name)}<small>${escape(row.ports || "Không mở cổng trên máy")}</small></div>${badge(row.state === "running" ? "Đang chạy" : "Đã dừng",row.state === "running" ? "running" : "")}</div>`).join("") : '<p class="meta">Không có container khác.</p>';
   syncControls();
 }
 function renderMetrics() {
@@ -70,14 +68,6 @@ function renderMetrics() {
     ["Điểm GPS",data.warehouse?.gps_points,""]
   ];
   $('#metrics').innerHTML=metrics.map(([label,value,unit])=>`<div><dt>${label}</dt><dd>${number(value)}${unit ? `<small>${unit}</small>` : ""}</dd></div>`).join('');
-}
-function renderStorage() {
-  const storage=state.overview.storage;
-  $('#storage-observed').hidden=!storage.observed_at;
-  $('#storage-observed').textContent=storage.observed_at ? `Dung lượng VHD được ghi nhận lúc ${date(storage.observed_at,true)}.${storage.disk_snapshot_at ? ' Số đo dung lượng ổ đĩa cũng lấy từ thời điểm này.' : ' Dung lượng trống các ổ được đọc trực tiếp.'}` : '';
-  const roles={"C:":"Windows, ứng dụng và log máy chủ","D:":"Mã nguồn, cache, backup","E:":"Docker và volume"};
-  $('#storage-disks').innerHTML=storage.disks.map(disk=>`<div class="disk-row"><div><strong>Ổ ${disk.drive}</strong><p>${roles[disk.drive] || "Ổ đĩa local"}</p></div><progress value="${disk.used}" max="${disk.total}" aria-label="Dung lượng đã dùng ổ ${disk.drive}"></progress><div class="disk-free">Trống ${bytes(disk.free)}<p>/ ${bytes(disk.total)}</p></div></div>`).join('');
-  $('#storage-details').innerHTML=`<div class="storage-row"><div><strong>Ổ đĩa Docker · ${bytes(storage.docker_bytes)}</strong><p>${escape(storage.docker_path)}</p></div>${badge(storage.pinned_to_e ? "Đã ghim trên E" : "Cần kiểm tra",storage.pinned_to_e ? "running" : "failed")}</div><div class="storage-row"><div><strong>Bản sao đã kiểm tra phục hồi</strong><p>${escape(storage.backup?.path || "Chưa tìm thấy bản ghi backup.")}</p><p>${storage.backup ? `Kiểm tra lúc ${date(storage.backup.checked_at,true)}. Kết quả được lưu từ lần đó; chưa kiểm tra lại file hiện tại.` : "Tạo backup và chạy verify để kiểm tra phục hồi."}</p></div>${badge(storage.backup?.verified ? "Đã thử phục hồi" : "Chưa xác minh",storage.backup?.verified ? "running" : "")}</div>`;
 }
 function renderNotice() {
   const data=state.overview; if(!data)return;
@@ -101,14 +91,14 @@ async function refresh(showFeedback=false) {
     $('#engine-status').textContent=data.docker.available ? `Docker Engine ${data.docker.version}` : "Docker chưa kết nối";
     $('#updated-at').textContent=`Cập nhật lúc ${date(data.checked_at)}`;
     renderNotice();
-    renderServices(); renderMetrics(); renderStorage();
+    renderServices(); renderMetrics();
     if(showFeedback) toast("Đã cập nhật trạng thái mới nhất.");
   } catch(error) {
     state.overview=null;syncControls();
     $('#connection-error').hidden=false; $('#connection-error').textContent=`Không kết nối được Console: ${error.message} Dữ liệu phía dưới có thể đã cũ.`;
   } finally { state.refreshing=false; $('#refresh').disabled=false; }
 }
-const views={services:"Dịch vụ",data:"Dữ liệu",logs:"Nhật ký",storage:"Lưu trữ"};
+const views={services:"Dịch vụ",data:"Dữ liệu",logs:"Nhật ký"};
 function navigate() {
   if(location.hash==='#content' && state.overview) return;
   let view=location.hash.slice(1); if(!views[view]) view="services";

@@ -345,12 +345,18 @@ def overview() -> dict[str, Any]:
         for key, value in SERVICES.items()
     ]
     engine: dict[str, Any] = {"available": False, "version": None}
-    others = []
     try:
         version = docker("version", "--format", "{{.Server.Version}}", timeout=5).strip()
         records = [
             json.loads(line)
-            for line in docker("ps", "-a", "--format", "{{json .}}").splitlines()
+            for line in docker(
+                "ps",
+                "-a",
+                "--filter",
+                "label=com.docker.compose.project=routeflow",
+                "--format",
+                "{{json .}}",
+            ).splitlines()
             if line
         ]
         for service in services:
@@ -360,16 +366,6 @@ def overview() -> dict[str, Any]:
                 state=container.get("State", "unknown") if container else "missing",
                 status=container.get("Status", "") if container else "Chưa được tạo",
             )
-        others = [
-            {
-                "name": row["Names"],
-                "state": row.get("State"),
-                "status": row.get("Status"),
-                "ports": row.get("Ports", ""),
-            }
-            for row in records
-            if not row["Names"].startswith("routeflow-")
-        ]
         engine = {"available": True, "version": version}
     except Exception:
         engine["message"] = "Chưa kết nối Docker Desktop. Bạn có thể mở Docker từ bảng điều khiển."
@@ -377,7 +373,6 @@ def overview() -> dict[str, Any]:
         "checked_at": timestamp(),
         "docker": engine,
         "services": services,
-        "others": others,
         "data": data_summary(),
         "storage": storage_summary(),
     }

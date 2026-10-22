@@ -8,6 +8,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
+from urllib.parse import urlencode
 
 MANAGED = (
     "source",
@@ -140,6 +141,9 @@ def dispatch(method: str, path: str, body: dict[str, Any]) -> Any:
     if method == "GET" and path == "/version":
         return {"version": engine("GET", "/version")["Version"]}
     if method == "GET" and path == "/containers":
+        filters = urlencode(
+            {"all": "1", "filters": json.dumps({"label": ["com.docker.compose.project=routeflow"]})}
+        )
         return [
             {
                 "Names": record["Names"][0].lstrip("/"),
@@ -151,7 +155,7 @@ def dispatch(method: str, path: str, body: dict[str, Any]) -> Any:
                     if "PublicPort" in port
                 ),
             }
-            for record in engine("GET", "/containers/json?all=1")
+            for record in engine("GET", "/containers/json?" + filters)
         ]
     if method == "GET" and path.startswith("/logs/"):
         service = path.removeprefix("/logs/")

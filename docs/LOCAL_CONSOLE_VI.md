@@ -22,13 +22,11 @@ khởi động console. Khi đã tạo các container, những lần sau chỉ c
 Nếu chỉ muốn mở lại console qua terminal: `.\scripts\start-console.ps1`.
 
 - **Dịch vụ:** trạng thái tám dịch vụ, tìm kiếm, lọc, bật/dừng/khởi động lại, API docs và
-  Spark UI. Container ngoài RouteFlow chỉ xem. Các nút dùng container đã có, không pull,
+  Spark UI. Các nút dùng container đã có, không pull,
   build, tạo hay xóa container/volume. Nếu đã xóa container, dùng Compose để tạo lại.
 - **Dữ liệu:** bảy bảng cho phép, truy vấn chỉ đọc, 20 dòng mỗi trang; không có SQL tùy ý.
 - **Nhật ký:** 150 dòng gần nhất, lọc và sao chép. Kiểm tra nội dung trước khi chia sẻ.
-- **Lưu trữ:** C/D/E, đường dẫn VHD và bằng chứng restore. Dung lượng trống đọc trực tiếp
-  qua các mount trên máy này. Kích thước VHD là số đo lúc chạy script, có nhãn thời gian;
-  kết quả restore là bằng chứng lịch sử. Lệnh backup/verify vẫn chạy chủ động từ PowerShell.
+
 
 Ứng dụng chờ database, migration và subscription sẵn sàng khi Docker Desktop bật các
 container cùng lúc. Broker trong console khởi động dependency và chạy init khi broker

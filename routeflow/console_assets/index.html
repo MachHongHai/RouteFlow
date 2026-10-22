@@ -17,7 +17,6 @@
     <a href="#services" data-view="services">Dịch vụ</a>
     <a href="#data" data-view="data">Dữ liệu</a>
     <a href="#logs" data-view="logs">Nhật ký</a>
-    <a href="#storage" data-view="storage">Lưu trữ</a>
   </nav>
   <div class="environment">localhost:58090<span>GCP chưa kết nối</span></div>
 </aside>
@@ -39,7 +38,6 @@
       <div id="all-services" role="rowgroup"><p class="empty-text">Đang đọc trạng thái dịch vụ…</p></div>
     </div>
     <div class="section-footer"><span id="updated-at">Đang cập nhật…</span><span>Tự cập nhật mỗi 15 giây</span></div>
-    <details class="other-containers"><summary>Container ngoài RouteFlow <span>Chỉ xem</span></summary><div id="other-containers"></div></details>
   </section>
   <section id="view-data" class="view" hidden>
     <div class="section-toolbar"><div class="filter-controls"><select id="table-select" aria-label="Chọn bảng dữ liệu"></select><button id="load-table" class="button secondary">Tải lại</button></div><span class="meta">Chỉ đọc · 20 dòng / trang</span></div>
@@ -52,13 +50,7 @@
     <input id="log-search" class="log-search" type="search" placeholder="Lọc nội dung log…" aria-label="Lọc nội dung log">
     <pre id="log-output" tabindex="0">Đang tải nhật ký…</pre>
   </section>
-  <section id="view-storage" class="view" hidden>
-    <h2>Ổ đĩa</h2><p id="storage-observed" class="meta" hidden></p><div id="storage-disks" class="storage-disks"></div>
-    <h2>Vị trí dữ liệu & bản sao</h2><div id="storage-details"></div>
-    <details class="storage-help"><summary>Tạo và kiểm tra bản sao mới</summary><p>Mở PowerShell tại thư mục dự án. Đặt tên thư mục mới cho mỗi bản sao.</p><pre>cd D:\Du-an\RouteFlow
-.\scripts\dev.ps1 uv run python scripts/backup_local.py backup --destination D:\RouteFlow-backups\TEN_BAN_SAO_MOI
-.\scripts\dev.ps1 uv run python scripts/backup_local.py verify --destination D:\RouteFlow-backups\TEN_BAN_SAO_MOI</pre><p>Backup tạm dừng API và ingestion. Verify phục hồi thử vào PostgreSQL riêng.</p></details>
-  </section>
+
 </main>
 <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">Dừng dịch vụ?</h2><p id="confirm-description"></p><div class="dialog-actions"><button id="cancel-confirm" class="button secondary" autofocus>Hủy</button><button id="accept-confirm" class="button danger">Dừng dịch vụ</button></div></dialog>
 <div id="toast" role="status" aria-live="polite" hidden></div>
