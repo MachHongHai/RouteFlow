@@ -70,6 +70,41 @@ def test_logs_decode_both_docker_streams() -> None:
     assert broker.demultiplex(b"plain tty\n") == "plain tty\n"
 
 
+@pytest.mark.parametrize("exit_code", [0, 1])
+def test_dbt_exec_is_fixed_and_checks_exit_code(monkeypatch: Any, exit_code: int) -> None:
+    calls = []
+
+    def engine(method: str, path: str, body: Any = None) -> dict[str, Any]:
+        calls.append((method, path, body))
+        return {"Id": "exec-id", "Running": False, "ExitCode": exit_code}
+
+    monkeypatch.setattr(
+        broker,
+        "container",
+        lambda service: {"Id": "api-id", "State": {"Running": service == "api"}},
+    )
+    monkeypatch.setattr(broker, "engine", engine)
+    with pytest.raises(ValueError):
+        broker.dispatch("POST", "/workloads/dbt", {"Cmd": ["whoami"]})
+    if exit_code:
+        with pytest.raises(RuntimeError):
+            broker.dispatch("POST", "/workloads/dbt", {})
+    else:
+        assert broker.dispatch("POST", "/workloads/dbt", {}) == {"exit_code": 0}
+    assert calls[0] == (
+        "POST",
+        "/containers/api-id/exec",
+        {
+            "Cmd": ["python", "-m", "routeflow.cli", "dbt"],
+            "User": "10001",
+            "WorkingDir": "/app",
+            "AttachStdout": False,
+            "AttachStderr": False,
+        },
+    )
+    assert calls[1] == ("POST", "/exec/exec-id/start", {"Detach": True, "Tty": False})
+
+
 def test_container_list_handles_no_published_ports(monkeypatch: Any) -> None:
     records = [
         {"Names": ["/routeflow-init-1"], "State": "exited", "Status": "Exited (0)", "Ports": None}

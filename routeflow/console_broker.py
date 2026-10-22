@@ -34,13 +34,18 @@ class EngineConnection(http.client.HTTPConnection):
         self.sock.connect("/var/run/docker.sock")
 
 
-def engine(method: str, path: str) -> Any:
+def engine(method: str, path: str, body: dict[str, Any] | None = None) -> Any:
     connection = EngineConnection()
     try:
-        connection.request(method, "/v1.51" + path)
+        connection.request(
+            method,
+            "/v1.51" + path,
+            body=json.dumps(body).encode() if body is not None else None,
+            headers={"Content-Type": "application/json"} if body is not None else {},
+        )
         response = connection.getresponse()
         content = response.read(2_000_000)
-        if response.status not in {200, 204, 304}:
+        if response.status not in {200, 201, 204, 304}:
             raise RuntimeError(f"Docker trả về HTTP {response.status}; kiểm tra log dịch vụ.")
         if "application/json" in response.getheader("Content-Type", ""):
             return json.loads(content) if content else {}
@@ -137,7 +142,49 @@ def demultiplex(content: bytes) -> str:
     return (bytes(output) if position else content)[-200_000:].decode("utf-8", errors="replace")
 
 
+def run_dbt() -> dict[str, Any]:
+    """One fixed command in the existing API container; callers cannot supply argv/env."""
+    if not LOCK.acquire(blocking=False):
+        raise RuntimeError("Đang xử lý thao tác khác.")
+    try:
+        record = container("api")
+        if not record["State"]["Running"]:
+            raise RuntimeError("Delivery API đang dừng.")
+        execution = engine(
+            "POST",
+            f"/containers/{record['Id']}/exec",
+            {
+                "Cmd": ["python", "-m", "routeflow.cli", "dbt"],
+                "User": "10001",
+                "WorkingDir": "/app",
+                "AttachStdout": False,
+                "AttachStderr": False,
+            },
+        )
+        identifier = execution["Id"]
+        engine("POST", f"/exec/{identifier}/start", {"Detach": True, "Tty": False})
+        deadline = time.monotonic() + 240
+        while time.monotonic() < deadline:
+            result = engine("GET", f"/exec/{identifier}/json")
+            if not result["Running"]:
+                if result["ExitCode"] != 0:
+                    raise RuntimeError(
+                        "dbt thất bại. Xem lịch sử pipeline và /app/dbt/logs/dbt.log."
+                    )
+                return {"exit_code": 0}
+            time.sleep(1)
+        raise TimeoutError(
+            "dbt chưa kết thúc trong 240 giây; tiến trình có thể vẫn chạy trong API."
+        )
+    finally:
+        LOCK.release()
+
+
 def dispatch(method: str, path: str, body: dict[str, Any]) -> Any:
+    if method == "POST" and path == "/workloads/dbt":
+        if body:
+            raise ValueError("dbt không nhận tham số tùy ý.")
+        return run_dbt()
     if method == "GET" and path == "/version":
         return {"version": engine("GET", "/version")["Version"]}
     if method == "GET" and path == "/containers":

@@ -1,7 +1,7 @@
 "use strict";
 const $ = (selector) => document.querySelector(selector);
 const token = $('meta[name="console-token"]').content;
-const state = {overview:null, busy:false, refreshing:false, table:"orders", page:1, log:"", view:"services", logService:"api"};
+const state = {overview:null, busy:false, generating:false, refreshing:false, table:"orders", page:1, log:"", view:"services", logService:"api"};
 const locale = new Intl.NumberFormat("vi-VN");
 const number = (value) => value == null ? "—" : locale.format(Number(value));
 const escape = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -26,7 +26,7 @@ function serviceStatus(service) {
 }
 const badge = (label, kind="") => `<span class="status ${kind}"><span class="tiny-dot"></span>${escape(label)}</span>`;
 function syncControls() {
-  const locked=state.busy || !state.overview?.docker.available || state.overview?.storage.pinned_to_e === false;
+  const locked=state.busy || state.generating || !state.overview?.docker.available || state.overview?.storage.pinned_to_e === false;
   document.querySelectorAll('[data-target="stack"]').forEach(button=>{
     const anyRunning=state.overview?.services.some(service=>['running','restarting'].includes(service.state));
     const allRunning=state.overview?.services.every(service=>service.state==='running');
@@ -40,7 +40,7 @@ function syncControls() {
 function serviceRow(service) {
   const [kind,label]=serviceStatus(service);
   const running=["running","restarting"].includes(service.state);
-  const disabled=state.busy || !state.overview?.docker.available || state.overview?.storage.pinned_to_e === false ? "disabled" : "";
+  const disabled=state.busy || state.generating || !state.overview?.docker.available || state.overview?.storage.pinned_to_e === false ? "disabled" : "";
   return `<div class="service-row" role="row"><div class="service-info" role="cell"><div class="service-name" title="${escape(service.detail)}">${escape(service.name)}${service.url ? `<a href="${service.url}" target="_blank" rel="noopener" aria-label="Mở ${escape(service.name)}">Mở</a>` : ""}</div><p>${escape(service.id)}${service.port ? ` · <span class="service-port">:${service.port}</span>` : ""}</p></div><div role="cell">${badge(label,kind)}</div><div class="service-actions" role="cell"><button class="text-button" data-logs="${service.id}" aria-label="Nhật ký ${escape(service.name)}">Nhật ký</button>${running ? `<button class="text-button" data-target="${service.id}" data-action="restart" ${disabled} aria-label="Khởi động lại ${escape(service.name)}">Khởi động lại</button>` : ""}<button class="text-button ${running ? "stop" : ""}" data-target="${service.id}" data-action="${running ? "stop" : "start"}" ${disabled} aria-label="${running ? "Dừng" : "Bật"} ${escape(service.name)}">${running ? "Dừng" : "Bật"}</button></div></div>`;
 }
 function renderServices() {
@@ -88,17 +88,19 @@ async function refresh(showFeedback=false) {
   try {
     state.overview=await api('/api/overview');
     const data=state.overview;
+    state.generating=!!data.generation_running;
     $('#engine-status').textContent=data.docker.available ? `Docker Engine ${data.docker.version}` : "Docker chưa kết nối";
     $('#updated-at').textContent=`Cập nhật lúc ${date(data.checked_at)}`;
     renderNotice();
     renderServices(); renderMetrics();
+    if(typeof syncGenerationControls==='function') syncGenerationControls();
     if(showFeedback) toast("Đã cập nhật trạng thái mới nhất.");
   } catch(error) {
     state.overview=null;syncControls();
     $('#connection-error').hidden=false; $('#connection-error').textContent=`Không kết nối được Console: ${error.message} Dữ liệu phía dưới có thể đã cũ.`;
   } finally { state.refreshing=false; $('#refresh').disabled=false; }
 }
-const views={services:"Dịch vụ",data:"Dữ liệu",logs:"Nhật ký"};
+const views={services:"Dịch vụ",generate:"Tạo dữ liệu",data:"Dữ liệu",logs:"Nhật ký"};
 function navigate() {
   if(location.hash==='#content' && state.overview) return;
   let view=location.hash.slice(1); if(!views[view]) view="services";
@@ -109,6 +111,7 @@ function navigate() {
   $('#start-stack').hidden=view!=='services';
   renderNotice();
   if(view==='data') loadTable(); if(view==='logs') loadLogs();
+  if(view==='generate' && typeof generationView==='function') generationView();
 }
 let tableRequest=0, logRequest=0;
 async function loadTable() {

@@ -50,7 +50,8 @@ No Kafka, Kubernetes, always-on cloud worker or paid Spark cluster is required.
 
 Local management UI: click **Start** on the **routeflow** group in Docker Desktop, then open
 [RouteFlow Console](http://127.0.0.1:58090) to control the eight services, inspect
-read-only data and service logs. The **console** container publishes port **58090**.
+read-only data and service logs, generate bounded batches, and trace their actual
+Outbox → Pub/Sub → RAW → dbt/Mart progress. The **console** container publishes port **58090**.
 First-time setup/update uses `scripts/start-console.ps1 -Build`; see the [console guide](docs/LOCAL_CONSOLE_VI.md).
 
 On this Windows workstation, keep project/cache data on D and Docker bulk data on E. Use the

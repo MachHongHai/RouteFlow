@@ -8,6 +8,7 @@
   <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/console.css">
   <script src="/assets/console.js" defer></script>
+  <script src="/assets/generation.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#content">Đến nội dung chính</a>
@@ -15,6 +16,7 @@
   <a class="brand" href="#services">RouteFlow<span>Quản trị local</span></a>
   <nav aria-label="Điều hướng chính">
     <a href="#services" data-view="services">Dịch vụ</a>
+    <a href="#generate" data-view="generate">Tạo dữ liệu</a>
     <a href="#data" data-view="data">Dữ liệu</a>
     <a href="#logs" data-view="logs">Nhật ký</a>
   </nav>
@@ -27,6 +29,28 @@
   </header>
   <div id="connection-error" class="notice" role="status" hidden></div>
   <div id="job-banner" class="job-banner" role="status" aria-live="polite" hidden></div>
+  <section id="view-generate" class="view" hidden>
+    <form id="generation-form" class="generation-form">
+      <label>Số đơn<input id="generation-orders" type="number" min="1" max="500" step="1" value="20" required></label>
+      <label>Ngày nghiệp vụ (UTC)<input id="generation-date" type="date" required></label>
+      <label>Seed<input id="generation-seed" type="number" min="0" max="9999999" step="1" value="42" required></label>
+      <label class="generation-checkbox"><input id="generation-transform" type="checkbox" checked>Chạy dbt sau khi nhận RAW</label>
+      <button id="generate-submit" class="button primary" type="submit" disabled>Tạo dữ liệu</button>
+    </form>
+    <p class="generation-help meta">Tạo thêm đơn mẫu và GPS của chuyến giao; dữ liệu hiện có được giữ nguyên. Cùng seed tái lập kết quả, mỗi đợt tạo đơn mới.</p>
+    <p id="generation-readiness" class="meta" role="status" hidden></p>
+    <p id="generation-error" class="notice" role="alert" hidden></p>
+    <div class="section-toolbar flow-toolbar">
+      <label class="run-selector">Theo dõi<select id="generation-runs"><option value="">Toàn bộ pipeline</option></select></label>
+      <span id="generation-status" role="status" aria-live="polite" class="meta">Đang đọc pipeline…</span>
+    </div>
+    <p id="generation-id" class="meta" hidden></p>
+    <ol id="pipeline-track" class="pipeline-track" aria-label="Các bước xử lý dữ liệu"></ol>
+    <div id="ingestion-bar" hidden><div class="section-footer"><span id="ingestion-count"></span><span id="flow-updated"></span></div><progress id="ingestion-progress" aria-label="Sự kiện của đợt đã vào RAW" value="0" max="1"></progress></div>
+    <section class="step-detail" aria-labelledby="step-detail-title"><h2 id="step-detail-title">Luồng xử lý</h2><p id="step-detail-body" class="meta">Chọn một bước để xem chi tiết.</p></section>
+    <section class="gps-branch" aria-labelledby="gps-branch-title"><h2 id="gps-branch-title">Nhánh GPS</h2><div id="gps-flow" class="gps-flow"></div><p class="meta">Spark đọc JSONL archive bằng job riêng. Lần chạy gần nhất của hệ thống không xác nhận mọi GPS mới đã được xử lý.</p></section>
+    <section id="generation-events" hidden><div class="section-toolbar"><h2>Sự kiện của đợt</h2><span class="meta">20 bản ghi mới nhất</span></div><div class="table-scroll"><table><thead><tr><th>Sự kiện</th><th>Mã sự kiện</th><th>Outbox / Pub/Sub</th><th>RAW</th></tr></thead><tbody id="generation-events-body"></tbody></table></div></section>
+  </section>
   <section id="view-services" class="view">
     <dl id="metrics" class="metrics" aria-label="Số liệu hệ thống"><div><dt>Dịch vụ đang chạy</dt><dd>—</dd></div></dl>
     <div class="section-toolbar">

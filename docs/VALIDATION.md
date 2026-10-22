@@ -151,3 +151,24 @@ junction was retired; host sockets/logs use a normal Windows directory. See
 The logical restore drill applies to RouteFlow, not the ecommerce applications. The full disk
 snapshot and their existing volumes were retained. No factory reset, volume prune or business
 data regeneration was used to make the old counts reappear.
+
+## Console generation and flow tracking, 2026-10-22
+
+- Unit/contract suite: **78 passed**. New cases cover strict bounds, CSRF, service/storage
+  readiness, request idempotency, persisted interruption, exact trace queries, context
+  isolation, partial generation, DLQ, ingestion timeout, mart completion and fixed dbt exec.
+- Ruff, mypy (31 modules), both JavaScript syntax checks and Compose configuration passed.
+- Rebuilt only `routeflow-console:local`, retaining the existing application/Spark images
+  and data volumes. Console runs within its 256-MiB limit; observed usage about 90 MiB.
+- Real API smoke submitted **2 orders**, seed 42, UTC business date 2026-10-21, with dbt
+  enabled. The batch produced **22 events / 4 GPS points**. All 22 were published and
+  ingested; both orders appeared in `analytics.fact_order`; trace-specific DLQ stayed 0.
+  Resubmitting the same request ID returned the original run without adding orders.
+- Resulting totals: **36 source orders = 36 facts; 584 RAW events; 268 RAW GPS points**.
+  Spark was not rerun: its existing 264-point summary is correctly shown separately.
+- Generation metadata uses the new `routeflow_console-state` volume on the existing E
+  Docker disk. During implementation/build/smoke, C free space rose from 31,658,684,416
+  to 31,663,927,296 bytes (about 5 MiB); no bulk C growth was observed.
+- Functional verification used the local APIs. Browser visual verification was unavailable
+  because the browser tool had rejected access to its existing non-HTTP tab; no alternate
+  browser-control workaround was used. No screenshot or visual-QA pass is claimed.

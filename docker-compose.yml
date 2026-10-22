@@ -93,6 +93,7 @@ services:
       SOURCE_DATABASE_URL: postgresql+psycopg://routeflow:routeflow@source:5432/routeflow
       WAREHOUSE_DATABASE_URL: postgresql+psycopg://routeflow:routeflow@warehouse:5432/warehouse
     volumes:
+      - console-state:/var/lib/routeflow-console
       - type: bind
         source: /var/run/docker.sock
         target: /var/run/docker.sock
@@ -168,6 +169,7 @@ services:
       init: {condition: service_completed_successfully}
       spark-worker: {condition: service_started}
 volumes:
+  console-state:
   source-data:
   warehouse-data:
   archive:

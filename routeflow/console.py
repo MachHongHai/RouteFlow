@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 from urllib.error import HTTPError
@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from sqlalchemy.engine import make_url
 
 from routeflow.config import settings
+from routeflow.console_generation import Generation, Generations, counts
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = Path(__file__).parent / "console_assets"
@@ -114,6 +115,9 @@ app = FastAPI(title="RouteFlow Console", docs_url=None, redoc_url=None, openapi_
 pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="routeflow-console")
 job_lock = threading.Lock()
 jobs: dict[str, dict[str, Any]] = {}
+generation_runs = Generations(
+    Path("/var/lib/routeflow-console") if CONTAINER_MODE else ROOT / ".local/console/generation"
+)
 
 
 def timestamp() -> str:
@@ -375,6 +379,7 @@ def overview() -> dict[str, Any]:
         "services": services,
         "data": data_summary(),
         "storage": storage_summary(),
+        "generation_running": generation_runs.running(),
     }
 
 
@@ -458,7 +463,7 @@ def perform(identifier: str, command: list[str]) -> None:
 def action(target: str, body: Action) -> dict[str, Any]:
     command = action_command(target, body.action)
     with job_lock:
-        if any(job["status"] == "running" for job in jobs.values()):
+        if generation_runs.running() or any(job["status"] == "running" for job in jobs.values()):
             raise HTTPException(409, "Đang xử lý một thao tác khác. Vui lòng đợi hoàn tất.")
         identifier = secrets.token_hex(8)
         job = {
@@ -482,3 +487,110 @@ def job_status(identifier: str) -> dict[str, Any]:
         if identifier not in jobs:
             raise HTTPException(404, "Không tìm thấy thao tác.")
         return jobs[identifier].copy()
+
+
+def transform_generated() -> None:
+    if CONTAINER_MODE:
+        broker("/workloads/dbt", {}, timeout=250)
+    else:
+        execute(
+            guarded(["compose", "exec", "-T", "api", "python", "-m", "routeflow.cli", "dbt"]),
+            timeout=250,
+        )
+
+
+@app.get("/api/generation/options")
+def generation_options() -> dict[str, Any]:
+    today = datetime.now(UTC).date()
+    return {
+        "default_date": (today - timedelta(days=1)).isoformat(),
+        "min_date": (today - timedelta(days=366)).isoformat(),
+        "max_date": today.isoformat(),
+        "max_orders": 500,
+    }
+
+
+@app.get("/api/generation")
+def list_generation() -> list[dict[str, Any]]:
+    return generation_runs.list()
+
+
+@app.post("/api/generation", status_code=202)
+def generate_data(body: Generation) -> dict[str, Any]:
+    identifier = str(body.request_id)
+    with job_lock:
+        # A retry of the same request returns its original job, including after completion.
+        if identifier in generation_runs.records:
+            try:
+                return generation_runs.create(body)[0]
+            except ValueError as error:
+                raise HTTPException(409, str(error)) from error
+        if any(job["status"] == "running" for job in jobs.values()):
+            raise HTTPException(409, "Đang xử lý thao tác dịch vụ khác.")
+        if generation_runs.running():
+            raise HTTPException(409, "Đang chạy một đợt dữ liệu khác.")
+        current = overview()
+        required = {"source", "warehouse", "pubsub", "relay", "consumer", "api"}
+        ready = {
+            s["id"]
+            for s in current["services"]
+            if s["state"] == "running"
+            and "unhealthy" not in s["status"]
+            and "starting" not in s["status"]
+        }
+        if not current["docker"]["available"] or not required <= ready:
+            raise HTTPException(
+                409,
+                "Bật đủ Source, Warehouse, Pub/Sub, API, Relay và Consumer trước khi tạo dữ liệu.",
+            )
+        if current["storage"]["pinned_to_e"] is not True:
+            raise HTTPException(409, "Cấu hình Docker chưa ghim trên E.")
+        record, _ = generation_runs.create(body)
+        pool.submit(generation_runs.run, record["id"], read_sql, transform_generated, redact)
+        return record
+
+
+@app.get("/api/generation/{identifier}")
+def generation_progress(identifier: str) -> dict[str, Any]:
+    try:
+        record = generation_runs.get(identifier)
+    except KeyError as error:
+        raise HTTPException(404, "Không tìm thấy đợt tạo dữ liệu.") from error
+    return {**record, "progress": counts(read_sql, record["id"]), "checked_at": timestamp()}
+
+
+@app.get("/api/flow")
+def flow_overview() -> dict[str, Any]:
+    source = warehouse = None
+    runs: list[dict[str, Any]] = []
+    try:
+        source = read_sql(
+            "source",
+            """select
+            (select count(*) from orders) as orders,
+            count(*) as events,count(*) filter(where published_at is not null) as published,
+            count(*) filter(where error is not null and published_at is null) as retrying,
+            count(*) filter(where body->>'event_type'='DRIVER_LOCATION') as gps
+            from outbox_events""",
+        )[0]
+        runs = read_sql(
+            "source",
+            """select distinct on (pipeline_name)
+            id,pipeline_name,status,created_at,finished_at,records_read,records_written
+            from pipeline_runs where pipeline_name in ('dbt','spark_gps')
+            order by pipeline_name,created_at desc""",
+        )
+    except Exception:
+        pass
+    try:
+        warehouse = read_sql(
+            "warehouse",
+            """select count(*) as events,
+            count(*) filter(where event_type='DRIVER_LOCATION') as gps,
+            (select count(*) from analytics.fact_order) as facts,
+            (select coalesce(sum(gps_points),0) from staging.stg_driver_gps_daily) as gps_summary
+            from raw_events""",
+        )[0]
+    except Exception:
+        pass
+    return {"source": source, "warehouse": warehouse, "runs": runs, "checked_at": timestamp()}

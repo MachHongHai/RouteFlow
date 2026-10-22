@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from routeflow.contracts import validate
+from routeflow.generation_context import generation_id
 from routeflow.models import (
     Assignment,
     Customer,
@@ -67,7 +68,7 @@ def emit(
         "event_time": (at or now()).isoformat(),
         "produced_at": now().isoformat(),
         "producer": "delivery-api",
-        "correlation_id": correlation_id or aggregate_id,
+        "correlation_id": correlation_id or generation_id.get() or aggregate_id,
         "payload": payload,
     }
     validate(event)
