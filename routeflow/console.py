@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from sqlalchemy.engine import make_url
 
 from routeflow.config import settings
+from routeflow.console_database import router as database_router
 from routeflow.console_generation import Generation, Generations, counts
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -112,6 +113,7 @@ TABLES = {
     "raw": ("warehouse", "public.raw_events", "RAW events", "ingested_at desc, event_id"),
 }
 app = FastAPI(title="RouteFlow Console", docs_url=None, redoc_url=None, openapi_url=None)
+app.include_router(database_router)
 pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="routeflow-console")
 job_lock = threading.Lock()
 jobs: dict[str, dict[str, Any]] = {}

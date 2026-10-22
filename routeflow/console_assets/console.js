@@ -74,7 +74,7 @@ function renderNotice() {
   const messages=[];
   if(!data.docker.available) messages.push(data.docker.message);
   if(data.storage.pinned_to_e === false) messages.push("Cấu hình WSL chưa ghim trên E. Kiểm tra trước khi bật dịch vụ.");
-  if(['services','data'].includes(state.view) && data.data.source?.dlq) messages.push(`DLQ: ${number(data.data.source.dlq)} sự kiện chưa xử lý. Xem bảng Dead-letter queue trong Dữ liệu.`);
+  if(state.view==='services' && data.data.source?.dlq) messages.push(`DLQ: ${number(data.data.source.dlq)} sự kiện chưa xử lý. Xem bảng dead_letters trong Database.`);
   $('#connection-error').hidden=!messages.length;
   $('#connection-error').textContent=messages.join(" ");
   if(!data.docker.available && data.storage.pinned_to_e !== false) {
@@ -100,7 +100,7 @@ async function refresh(showFeedback=false) {
     $('#connection-error').hidden=false; $('#connection-error').textContent=`Không kết nối được Console: ${error.message} Dữ liệu phía dưới có thể đã cũ.`;
   } finally { state.refreshing=false; $('#refresh').disabled=false; }
 }
-const views={services:"Dịch vụ",generate:"Tạo dữ liệu",data:"Dữ liệu",logs:"Nhật ký"};
+const views={services:"Dịch vụ",generate:"Luồng dữ liệu",data:"Database",logs:"Nhật ký"};
 function navigate() {
   if(location.hash==='#content' && state.overview) return;
   let view=location.hash.slice(1); if(!views[view]) view="services";
@@ -110,28 +110,10 @@ function navigate() {
   $('#page-title').textContent=views[view]; document.title=`RouteFlow · ${views[view]}`;
   $('#start-stack').hidden=view!=='services';
   renderNotice();
-  if(view==='data') loadTable(); if(view==='logs') loadLogs();
+  if(view==='data' && typeof databaseView==='function') databaseView(); if(view==='logs') loadLogs();
   if(view==='generate' && typeof generationView==='function') generationView();
 }
-let tableRequest=0, logRequest=0;
-async function loadTable() {
-  const request=++tableRequest, table=state.table, page=state.page;
-  $('#data-state').textContent='Đang đọc dữ liệu…'; $('#data-table thead').replaceChildren(); $('#data-table tbody').replaceChildren();
-  $('#previous-page').disabled=true; $('#next-page').disabled=true;
-  try {
-    const data=await api(`/api/tables/${encodeURIComponent(table)}?page=${page}`);
-    if(request!==tableRequest) return;
-    const columns=Object.keys(data.rows[0] || {});
-    const header=document.createElement('tr');
-    for(const column of columns) {const cell=document.createElement('th');cell.textContent=column;header.append(cell);}
-    $('#data-table thead').append(header);
-    for(const row of data.rows) {const tr=document.createElement('tr');for(const key of columns){const cell=document.createElement('td');const value=row[key];const text=typeof value==='object'&&value!==null ? JSON.stringify(value) : String(value??'—'); cell.textContent=text;cell.title=text;tr.append(cell);}$('#data-table tbody').append(tr);}
-    $('#data-state').textContent=columns.length ? '' : 'Bảng hiện chưa có dữ liệu.';
-    $('#data-caption').textContent=`${data.name} · ${number(data.total)} dòng · chỉ đọc`;
-    $('#page-label').textContent=`Trang ${state.page}`;
-    $('#previous-page').disabled=state.page<=1; $('#next-page').disabled=state.page*20>=data.total;
-  } catch(error) {if(request!==tableRequest)return;$('#data-state').textContent=error.message;$('#data-caption').textContent='Không đọc được bảng.';}
-}
+let logRequest=0;
 function renderLogs() {
   const search=$('#log-search').value.toLowerCase();
   $('#log-output').textContent=state.log.split('\n').filter(line=>line.toLowerCase().includes(search)).join('\n') || 'Không có dòng phù hợp.';
@@ -177,17 +159,12 @@ $('#cancel-confirm').addEventListener('click',()=>$('#confirm-dialog').close());
 $('#accept-confirm').addEventListener('click',()=>{const action=pendingAction;$('#confirm-dialog').close();if(action)runAction(action.target,action.action);});
 $('#refresh').addEventListener('click',()=>refresh(true));
 $('#service-search').addEventListener('input',renderServices);$('#service-filter').addEventListener('change',renderServices);
-$('#table-select').addEventListener('change',event=>{state.table=event.target.value;state.page=1;loadTable();});
-$('#load-table').addEventListener('click',loadTable);
-$('#previous-page').addEventListener('click',()=>{state.page--;loadTable();});$('#next-page').addEventListener('click',()=>{state.page++;loadTable();});
 $('#log-select').addEventListener('change',event=>{state.logService=event.target.value;loadLogs();});
 $('#load-logs').addEventListener('click',loadLogs);$('#log-search').addEventListener('input',renderLogs);
 $('#copy-logs').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('#log-output').textContent);toast('Đã sao chép log.');}catch{toast('Không sao chép được. Bạn có thể chọn và sao chép nội dung trong khung log.');}});
 window.addEventListener('hashchange',navigate);
 async function init() {
   try {
-    const tables=await api('/api/tables');
-    $('#table-select').innerHTML=tables.map(table=>`<option value="${table.id}">${escape(table.name)} · ${table.database}</option>`).join('');
     const services=[['api','Delivery API'],['source','Source PostgreSQL'],['warehouse','Analytics Warehouse'],['pubsub','Pub/Sub Emulator'],['relay','Outbox Relay'],['consumer','Event Consumer'],['spark-master','Spark Master'],['spark-worker','Spark Worker']];
     $('#log-select').innerHTML=services.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
     navigate();await refresh();

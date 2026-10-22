@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/assets/console.css">
   <script src="/assets/console.js" defer></script>
   <script src="/assets/generation.js" defer></script>
+  <script src="/assets/database.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#content">Đến nội dung chính</a>
@@ -17,7 +18,7 @@
   <nav aria-label="Điều hướng chính">
     <a href="#services" data-view="services">Dịch vụ</a>
     <a href="#generate" data-view="generate">Tạo dữ liệu</a>
-    <a href="#data" data-view="data">Dữ liệu</a>
+    <a href="#data" data-view="data">Database</a>
     <a href="#logs" data-view="logs">Nhật ký</a>
   </nav>
   <div class="environment">localhost:58090<span>GCP chưa kết nối</span></div>
@@ -37,19 +38,23 @@
       <label class="generation-checkbox"><input id="generation-transform" type="checkbox" checked>Chạy dbt sau khi nhận RAW</label>
       <button id="generate-submit" class="button primary" type="submit" disabled>Tạo dữ liệu</button>
     </form>
-    <p class="generation-help meta">Tạo thêm đơn mẫu và GPS của chuyến giao; dữ liệu hiện có được giữ nguyên. Cùng seed tái lập kết quả, mỗi đợt tạo đơn mới.</p>
+    <p class="generation-help meta">1–500 đơn mỗi đợt · Tạo thêm dữ liệu mới · Cùng seed tái lập kết quả nghiệp vụ.</p>
     <p id="generation-readiness" class="meta" role="status" hidden></p>
     <p id="generation-error" class="notice" role="alert" hidden></p>
     <div class="section-toolbar flow-toolbar">
       <label class="run-selector">Theo dõi<select id="generation-runs"><option value="">Toàn bộ pipeline</option></select></label>
       <span id="generation-status" role="status" aria-live="polite" class="meta">Đang đọc pipeline…</span>
     </div>
-    <p id="generation-id" class="meta" hidden></p>
-    <ol id="pipeline-track" class="pipeline-track" aria-label="Các bước xử lý dữ liệu"></ol>
-    <div id="ingestion-bar" hidden><div class="section-footer"><span id="ingestion-count"></span><span id="flow-updated"></span></div><progress id="ingestion-progress" aria-label="Sự kiện của đợt đã vào RAW" value="0" max="1"></progress></div>
-    <section class="step-detail" aria-labelledby="step-detail-title"><h2 id="step-detail-title">Luồng xử lý</h2><p id="step-detail-body" class="meta">Chọn một bước để xem chi tiết.</p></section>
-    <section class="gps-branch" aria-labelledby="gps-branch-title"><h2 id="gps-branch-title">Nhánh GPS</h2><div id="gps-flow" class="gps-flow"></div><p class="meta">Spark đọc JSONL archive bằng job riêng. Lần chạy gần nhất của hệ thống không xác nhận mọi GPS mới đã được xử lý.</p></section>
-    <section id="generation-events" hidden><div class="section-toolbar"><h2>Sự kiện của đợt</h2><span class="meta">20 bản ghi mới nhất</span></div><div class="table-scroll"><table><thead><tr><th>Sự kiện</th><th>Mã sự kiện</th><th>Outbox / Pub/Sub</th><th>RAW</th></tr></thead><tbody id="generation-events-body"></tbody></table></div></section>
+    <section class="flow-board" aria-labelledby="flow-board-title">
+      <div class="flow-board-heading"><div><span class="eyebrow">STREAMING PIPELINE</span><h2 id="flow-board-title">Hành trình dữ liệu</h2></div><div class="flow-completion"><strong id="flow-percent">—</strong><span>đã vào RAW</span></div></div>
+      <ol id="pipeline-track" class="pipeline-track" aria-label="Các bước xử lý dữ liệu"></ol>
+      <div id="ingestion-bar" hidden><div class="flow-distribution" id="flow-distribution" aria-hidden="true"></div><div class="flow-legend" id="flow-legend"></div><progress id="ingestion-progress" class="sr-only" aria-label="Sự kiện của đợt đã vào RAW" value="0" max="1"></progress><span id="ingestion-count" class="sr-only"></span></div>
+      <div class="flow-board-footer"><span id="flow-health"></span><span id="flow-updated"></span></div>
+    </section>
+    <section class="step-detail" aria-labelledby="step-detail-title"><div><h2 id="step-detail-title">Luồng xử lý</h2><a id="step-data-link" href="#data" class="inline-link">Mở bảng ↗</a></div><p id="step-detail-body" class="meta">Chọn một bước để xem chi tiết.</p></section>
+    <section class="gps-branch" aria-labelledby="gps-branch-title"><div class="gps-heading"><h2 id="gps-branch-title">Nhánh GPS</h2><span class="meta">BATCH · Đọc từ archive · Chạy riêng</span></div><div id="gps-flow" class="gps-flow"></div><p id="gps-freshness" class="meta"></p></section>
+    <details class="run-metadata"><summary>Thông tin đợt chạy</summary><p id="generation-id" class="meta" hidden></p></details>
+    <details id="generation-events" hidden><summary>Sự kiện của đợt <span class="meta">20 bản ghi mới nhất</span></summary><div class="table-scroll"><table><thead><tr><th>Sự kiện</th><th>Mã sự kiện</th><th>Outbox / Pub/Sub</th><th>RAW</th></tr></thead><tbody id="generation-events-body"></tbody></table></div></details>
   </section>
   <section id="view-services" class="view">
     <dl id="metrics" class="metrics" aria-label="Số liệu hệ thống"><div><dt>Dịch vụ đang chạy</dt><dd>—</dd></div></dl>
@@ -64,10 +69,19 @@
     <div class="section-footer"><span id="updated-at">Đang cập nhật…</span><span>Tự cập nhật mỗi 15 giây</span></div>
   </section>
   <section id="view-data" class="view" hidden>
-    <div class="section-toolbar"><div class="filter-controls"><select id="table-select" aria-label="Chọn bảng dữ liệu"></select><button id="load-table" class="button secondary">Tải lại</button></div><span class="meta">Chỉ đọc · 20 dòng / trang</span></div>
-    <div id="data-state" class="data-state" role="status"></div>
-    <div class="table-scroll data-scroll"><table id="data-table"><thead></thead><tbody></tbody></table></div>
-    <div class="section-footer"><span id="data-caption">Chọn một bảng để bắt đầu.</span><div class="pagination"><button id="previous-page" class="button secondary" disabled>Trước</button><span id="page-label">Trang 1</span><button id="next-page" class="button secondary" disabled>Sau</button></div></div>
+    <div class="database-toolbar"><label>Kết nối <select id="database-select"><option value="source">Source · PostgreSQL</option><option value="warehouse">Warehouse · PostgreSQL</option></select></label><span id="database-connection" class="meta" role="status">Đang kết nối…</span><button id="database-reload" class="text-button">Tải lại schema</button></div>
+    <div class="database-workspace">
+      <aside class="schema-browser" aria-label="Danh sách bảng"><input id="database-search" type="search" placeholder="Tìm bảng…" aria-label="Tìm bảng trong database"><div id="database-tables"></div></aside>
+      <div class="query-workspace">
+        <div class="query-heading"><h2 id="database-table-name">SQL Editor</h2><span class="readonly-label">Chỉ đọc</span></div>
+        <label for="sql-editor" class="sr-only">Truy vấn SQL</label><textarea id="sql-editor" spellcheck="false" rows="5" placeholder="SELECT * FROM public.orders LIMIT 100;"></textarea>
+        <div class="query-actions"><span class="meta">SELECT / WITH · Ctrl + Enter</span><label class="meta">Giới hạn <select id="query-limit" aria-label="Giới hạn số dòng"><option>100</option><option>200</option><option>500</option></select></label><button id="query-run" class="button primary">Chạy truy vấn <span aria-hidden="true">→</span></button></div>
+        <p id="query-error" class="notice" role="alert" hidden></p>
+        <div class="query-results-heading"><div class="result-tabs" role="tablist" aria-label="Kết quả database"><button id="result-tab" role="tab" aria-selected="true" aria-controls="query-result-panel">Kết quả</button><button id="columns-tab" role="tab" aria-selected="false" aria-controls="query-columns-panel">Cấu trúc cột</button></div><span id="query-status" class="meta" role="status">Chọn bảng hoặc nhập SQL.</span></div>
+        <div id="query-result-panel" role="tabpanel" aria-labelledby="result-tab"><div class="table-scroll query-result-scroll"><table id="query-result"><thead></thead><tbody></tbody></table></div><p id="query-result-note" class="meta"></p></div>
+        <div id="query-columns-panel" role="tabpanel" aria-labelledby="columns-tab" hidden><div class="table-scroll"><table><thead><tr><th>Cột</th><th>Kiểu dữ liệu</th><th>Ràng buộc</th><th>Mặc định</th></tr></thead><tbody id="database-columns"></tbody></table></div></div>
+      </div>
+    </div>
   </section>
   <section id="view-logs" class="view" hidden>
     <div class="section-toolbar"><div class="filter-controls"><select id="log-select" aria-label="Chọn dịch vụ xem log"></select><button id="load-logs" class="button secondary">Tải log</button><button id="copy-logs" class="button secondary">Sao chép</button></div><span class="meta">150 dòng gần nhất</span></div>

@@ -24,7 +24,10 @@ Nếu chỉ muốn mở lại console qua terminal: `.\scripts\start-console.ps1
 - **Dịch vụ:** trạng thái tám dịch vụ, tìm kiếm, lọc, bật/dừng/khởi động lại, API docs và
   Spark UI. Các nút dùng container đã có, không pull,
   build, tạo hay xóa container/volume. Nếu đã xóa container, dùng Compose để tạo lại.
-- **Dữ liệu:** bảy bảng cho phép, truy vấn chỉ đọc, 20 dòng mỗi trang; không có SQL tùy ý.
+- **Database:** chọn Source hoặc Warehouse, duyệt bảng/view theo schema, tìm bảng,
+  xem kiểu cột, khóa chính, NULL và giá trị mặc định. Bấm bảng để xem dữ liệu mẫu.
+  SQL Editor hỗ trợ `SELECT` / `WITH`, join và tổng hợp; bấm **Chạy truy vấn** hoặc
+  **Ctrl + Enter**. Chọn giới hạn 100, 200 hoặc 500 dòng. Bảng rỗng vẫn hiện tên cột.
 - **Tạo dữ liệu:** chọn 1–500 đơn, ngày nghiệp vụ UTC và seed; tùy chọn chạy dbt khi
   toàn bộ sự kiện đã vào RAW. Mỗi lần tạo thêm đơn mới, giữ dữ liệu hiện có.
 - **Nhật ký:** 150 dòng gần nhất, lọc và sao chép. Kiểm tra nội dung trước khi chia sẻ.
@@ -54,6 +57,22 @@ dbt/Mart**. Bấm từng bước để xem giải thích; bảng bên dưới hi
 của đợt, trạng thái publish và nhận RAW. Generator gọi nghiệp vụ trực tiếp, không tạo
 HTTP traffic qua Delivery API. `published_at` là xác nhận publish, không phải độ dài queue.
 
+Sơ đồ hiển thị số lượng lớn ngay tại từng bước, trạng thái xử lý và tỷ lệ nhận RAW.
+Thanh phân bổ tách sự kiện đã vào RAW, đã publish nhưng chờ RAW và chưa publish.
+Đường nối chỉ có chuyển động ngắn khi số đếm thực tăng trong một đợt đang chạy.
+Chọn bước rồi bấm **Mở bảng** để đi thẳng tới bảng liên quan trong Database.
+Thông tin mã đợt và danh sách sự kiện được thu gọn để ưu tiên phần trực quan.
+
+SQL Editor kết nối bằng role riêng `routeflow_console_reader`, không phải tài khoản
+owner chạy nghiệp vụ. Role được cấp SELECT trên bảng/view của các schema ứng dụng;
+các bảng tạo sau đó bởi owner cũng được cấp quyền đọc. Key đăng nhập ngẫu nhiên nằm
+trong volume console trên E, không gửi ra trình duyệt. Kết nối bật transaction chỉ đọc;
+SQL chỉ chạy trong một SELECT con và dùng extended protocol. Không hỗ trợ ghi dữ liệu,
+DDL hoặc nhiều câu lệnh trong một lần chạy. Tối đa hai truy vấn đồng thời, timeout SQL
+5 giây (watchdog 6 giây), tối đa 500 dòng / 80 cột; dữ liệu lớn và ô dài được rút gọn có
+thông báo. Kết quả được đọc qua server cursor để không buffer toàn bộ vào console.
+Nội dung SQL chỉ giữ trong RAM của tab, không lưu lịch sử truy vấn trên ổ đĩa.
+
 Nhánh GPS hiển thị số điểm RAW của đợt, lần chạy Spark gần nhất và tổng điểm đã tổng hợp
 trong hệ thống. **Spark vẫn chạy bằng job riêng**, không tự chạy khi generate hoặc Start;
 trạng thái Spark gần nhất không chứng minh GPS vừa tạo đã được xử lý.
@@ -64,7 +83,8 @@ cầu trả lại đợt cũ; bấm tạo đợt mới sẽ thêm đơn mới k�
 khởi động lại, đợt đang chạy được đánh dấu gián đoạn, không tự sinh lại; dữ liệu đã commit
 vẫn được giữ nguyên và dbt có thể vẫn đang chạy trong API.
 
-Các trang khác tự cập nhật mỗi 15 giây khi tab hiển thị. Database chưa kết nối hiện dấu —.
+Trạng thái dịch vụ tự cập nhật mỗi 15 giây khi tab hiển thị. Database chạy truy vấn khi
+bạn chọn bảng hoặc bấm chạy; không tự chạy lại SQL đã nhập theo chu kỳ.
 Một thao tác chạy tại một thời điểm; các nút dịch vụ bị khóa khi đợt dữ liệu đang chạy.
 Lịch sử thao tác bật/dừng dịch vụ trong RAM mất khi console khởi động lại. Nếu thao tác
 hết thời gian, làm mới trạng thái trước khi thử lại.

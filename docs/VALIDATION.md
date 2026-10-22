@@ -172,3 +172,29 @@ data regeneration was used to make the old counts reappear.
 - Functional verification used the local APIs. Browser visual verification was unavailable
   because the browser tool had rejected access to its existing non-HTTP tab; no alternate
   browser-control workaround was used. No screenshot or visual-QA pass is claimed.
+
+## Visual pipeline and database explorer, 2026-10-22
+
+- Reworked the generation page around a connected pipeline diagram with prominent counts,
+  per-stage states, RAW completion and an event-distribution bar. Expandable trace details
+  keep technical metadata below the diagram. Stage links open the actual corresponding table.
+- Added a schema explorer and SQL Editor: **18 Source tables / 114 columns**, **28 Warehouse
+  tables and views / 235 columns**. Verified primary keys through the reader connection.
+- **89 unit/contract tests passed**, Ruff, mypy (32 modules), and all three JavaScript syntax
+  checks passed. The dedicated reader is a separate PostgreSQL login with SELECT grants,
+  read-only transactions, bounded streaming results and query cancellation.
+- Real API checks passed for aggregation, CTE, empty results with columns, duplicate column
+  names, row limits and semicolons in string literals. Write statements, writable CTEs,
+  multiple statements, owner-role escalation and pg_authid access were rejected. A 6-second
+  sleep was canceled by the 5-second SQL timeout. Neither business data nor pipeline runs
+  changed during this validation: **61 orders = 61 facts; 817 RAW events; 312 RAW GPS points**.
+  The additional 25-order batch already existed before this UI change; no new batch was generated.
+- A fresh browser tab to the explicit local HTTP address worked this turn. Verified the
+  diagram at 1440-pixel desktop and 390-pixel narrow breakpoints, Database queries and column
+  tabs in the real browser, and the Consumer-to-RAW table link. No horizontal document
+  overflow at the narrow breakpoint; no browser console errors observed. Reset the viewport
+  after checking. This supersedes the previous turn's visual-verification limitation.
+- Rebuilt/recreated only console. Its observed memory use was about 75 MiB / 256 MiB.
+  Existing Docker storage and the reader credential remain on E; shell cache/temp stay on D.
+  C free space fluctuated from about 29.18 to 29.11 GiB during the session; no new Docker
+  disk or bulk RouteFlow cache on C was created.
