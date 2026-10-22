@@ -1,7 +1,8 @@
 # Thiếu sót và kế hoạch hoàn thiện
 
-Ngày 2026-10-19 đã bổ sung [console quản trị local](LOCAL_CONSOLE_VI.md): tám dịch vụ,
-dữ liệu chỉ đọc, nhật ký và lưu trữ. Console chưa có đăng nhập/RBAC để truy cập từ xa;
+Ngày 2026-10-22, [console quản trị local](LOCAL_CONSOLE_VI.md) hỗ trợ dịch vụ, tạo đợt dữ liệu,
+theo dõi pipeline, duyệt schema, SQL chỉ đọc và nhật ký. Cấu hình mặc định portable;
+policy D/E dành cho máy chủ dự án nằm trong override riêng. Console chưa có đăng nhập/RBAC từ xa;
 chỉ dùng trên localhost. Chưa có BI dashboard nghiệp vụ và chưa kết nối GCP.
 
 Đánh giá ngày 2026-10-16. Phân biệt code đã viết, kết quả local đã quan sát và cloud chưa xác minh.
@@ -18,7 +19,7 @@ Không dùng số bài test local để khẳng định GCP sẵn sàng producti
 | P1 cloud | Spark cloud chưa có runner/GCS connector | Streaming cloud có thể chạy riêng; GPS cloud chưa có execution path vận hành hoàn chỉnh | Duy trì Spark local; chỉ cấu hình runner cloud khi có nhu cầu/chi phí được duyệt |
 | P1 vận hành | Cảnh báo chưa được gửi thử; email mặc định trống | Có alert policy không có nghĩa operator nhận được cảnh báo | Điền `notification_email`, tạo sự cố thử và kiểm tra khôi phục |
 | P1 vận hành | Đã diễn tập restore local sau sự cố Docker; chưa có HA hoặc backup ngoài máy | Backup/restore 18 bảng nguồn, 17 bảng warehouse đã khớp; chưa có RPO/RTO production | Bổ sung bản sao ngoài máy và diễn tập mất ổ đĩa/production khi cần |
-| P1 release | Chưa có Git remote, CI/GitHub WIF chưa chạy thật | Chỉ kiểm chứng các lệnh local tương ứng | Tạo repository remote, push, cấu hình `gcp`, chạy CI/deploy |
+| P1 release | Đã có GitHub remote; trạng thái CI xem trong Actions, GCP WIF chưa xác minh | Kết quả local và CI cần phân biệt với deploy cloud | Kiểm tra CI của commit mới; chỉ cấu hình `gcp` và deploy khi có project thật |
 | P2 dữ liệu | Spark quét lịch sử và rebuild suffix để bảo toàn chuỗi GPS | Chưa phải incremental tối ưu ở dữ liệu lớn; partition pruning đầu vào còn hạn chế | Cần checkpoint/index theo driver và phạm vi ảnh hưởng trước khi tối ưu |
 | P2 lưu trữ | Parquet generation cũ chưa có GC local tự động | Chạy lại nhiều lần tăng dung lượng Docker trên E | Thiết kế retention bảo vệ run đang dùng/phục hồi, dry-run trước khi xóa |
 | P2 đo lường | Workload hiện nhỏ; chưa có benchmark throughput, cloud cost, coverage % | Không có cơ sở công bố SLA, speedup hay chi phí production | Chạy benchmark có baseline, quy mô và giới hạn rõ ràng |

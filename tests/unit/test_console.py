@@ -1,4 +1,5 @@
 import subprocess
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -139,6 +140,20 @@ def test_failed_action_output_is_redacted(monkeypatch: Any) -> None:
     result = console.jobs["test"]
     assert result["status"] == "failed"
     assert "HIDDEN" not in result["output"] and "SECRET" not in result["output"]
+
+
+def test_process_execution_works_without_windows_only_constants(monkeypatch: Any) -> None:
+    calls = []
+
+    def run(arguments: list[str], **kwargs: Any) -> Any:
+        calls.append(kwargs)
+        return SimpleNamespace(returncode=0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(console, "CONTAINER_MODE", False)
+    monkeypatch.delattr(subprocess, "CREATE_NO_WINDOW", raising=False)
+    monkeypatch.setattr(subprocess, "run", run)
+    assert console.execute(["fixed-command"]) == "ok"
+    assert calls[0]["creationflags"] == 0
 
 
 def test_timeout_does_not_claim_the_service_stopped(monkeypatch: Any) -> None:

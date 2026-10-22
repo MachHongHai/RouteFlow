@@ -1,5 +1,11 @@
 # Giao diện quản lý local
 
+Trên máy khác dùng Docker Linux containers, khởi tạo bằng
+`docker compose --profile console up -d --build`, rồi mở localhost:58090. Cấu hình mặc định
+dùng Docker volumes, không yêu cầu ổ D/E hay thư mục Docker settings của Windows.
+Compose tự build image nền cho console. Các hướng dẫn PowerShell D/E bên dưới dành riêng
+cho máy Windows của chủ dự án; wrapper tự chọn `docker-compose.windows.yml` và giữ kiểm tra E.
+
 Trong Docker Desktop, bấm **Start** cho nhóm **routeflow**, mở rộng nhóm rồi bấm cổng
 **58090:8080** của **console**. Hoặc mở [RouteFlow Console](http://127.0.0.1:58090).
 UI đã là container cùng nhóm; không cần chạy PowerShell riêng mỗi lần.
@@ -49,6 +55,8 @@ Cổng web chỉ publish 127.0.0.1:58090. Host/CSRF/token được kiểm tra; k
 hoặc Internet. Đây là công cụ quản trị local, chưa có đăng nhập/RBAC nhiều người. Container
 UI có filesystem chỉ đọc và tmpfs giới hạn trên E. Cache/temp host của wrapper ở D.
 Nút thay đổi trạng thái kiểm tra cấu hình Docker đang ghim E từ mount settings chỉ đọc.
+Kiểm tra E áp dụng khi dùng policy workstation. Policy portable dùng nơi lưu trữ volumes
+của Docker Engine được chọn; không khẳng định dữ liệu trên máy khác nằm ở E.
 GCP chưa kết nối; console không triển khai hay quản lý cloud.
 
 Trang Tạo dữ liệu cập nhật mỗi 2 giây khi hiển thị. Chọn một đợt để theo dõi số liệu

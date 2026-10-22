@@ -1,11 +1,22 @@
 # Local development
 
-For the local service management UI, click Start on the existing `routeflow` group in Docker
-Desktop, then open the `console` service port [58090](http://127.0.0.1:58090).
-First-time setup/update uses `scripts/start-console.ps1 -Build`. See
-[the console guide](LOCAL_CONSOLE_VI.md) for controls, storage and access restrictions.
+For a fresh checkout on Linux, macOS, or Windows with Linux containers:
 
-Prerequisites: Docker Engine with Compose v2, at least approximately 8 GiB Docker memory for the
+```bash
+docker compose --profile console up -d --build
+```
+
+Open the [console](http://127.0.0.1:58090) to generate sample data, trace ingestion, and query
+the databases. Console builds its application base through a declared Compose build dependency;
+no pre-existing `routeflow-app:local` image or Windows host mounts are required.
+See [the console guide](LOCAL_CONSOLE_VI.md) for controls and access restrictions.
+
+On the maintainer's D/E Windows workstation, use `scripts/start-console.ps1 -Build` and
+`scripts/dev.ps1` instead. The wrapper selects `docker-compose.windows.yml`, checks Docker/WSL
+placement on E, and sets host caches/temp on D. After creating containers, Docker Desktop's
+Start button on the `routeflow` group starts the console too.
+
+Prerequisites: Docker Engine with Compose 2.17+, at least approximately 8 GiB Docker memory for the
 optional Spark branch, and Python 3.12+ / uv for host tests. No cloud credentials are required.
 All published service ports bind only to loopback. Default database passwords are local demo values.
 

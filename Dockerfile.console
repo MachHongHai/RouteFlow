@@ -1,6 +1,6 @@
-FROM routeflow-app:local
+FROM app
 USER root
-COPY routeflow/console.py routeflow/console_broker.py routeflow/console_entry.py /app/routeflow/
+COPY routeflow/console.py routeflow/console_broker.py routeflow/console_entry.py routeflow/console_storage.py /app/routeflow/
 COPY routeflow/console_assets /app/routeflow/console_assets
 COPY routeflow/console_generation.py routeflow/generation_context.py routeflow/domain.py /app/routeflow/
 COPY routeflow/console_database.py /app/routeflow/

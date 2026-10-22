@@ -198,3 +198,30 @@ data regeneration was used to make the old counts reappear.
   Existing Docker storage and the reader credential remain on E; shell cache/temp stay on D.
   C free space fluctuated from about 29.18 to 29.11 GiB during the session; no new Docker
   disk or bulk RouteFlow cache on C was created.
+
+## Portfolio source cleanup, 2026-10-22
+
+- Replaced the long landing README with a concise English overview, architecture, portable
+  quickstart, screenshots, validation commands, and links. Added a documentation index,
+  contribution guide, package metadata, and separate CV/interview notes. Corrected stale
+  descriptions of the console storage page and missing Git remote.
+- Added EditorConfig and pinned Prettier tooling; formatted the buildless console and added
+  frontend formatting/syntax checks plus Python format checking to CI.
+- Extracted storage policy from HTTP routes. Base Compose uses Docker volumes without Windows
+  host mounts; `docker-compose.windows.yml` contains the D/E workstation mounts. The guarded
+  PowerShell wrapper selects that override. Missing workstation metadata fails closed.
+- Declared the console's application-image build dependency with Compose `additional_contexts`.
+  `docker compose build console` built both application and console successfully. An isolated,
+  read-only container with no host mounts served the console HTTP shell and overview under
+  the portable policy; the same probe confirmed that missing workstation metadata blocks controls.
+- Local checks: **96 passed / 18 infrastructure-dependent tests skipped**, Ruff lint/format,
+  mypy (33 modules), frontend format/syntax, both Compose configurations, PowerShell parsing,
+  wheel packaging, and relative links across 34 documentation files. Wheel contents include
+  event schemas and console assets. Existing streaming/Spark integration results above remain
+  historical; those infrastructure suites were not rerun for formatting/storage-policy changes.
+- Inspected the previous GitHub run: application type checking failed on the Windows-only
+  `subprocess.CREATE_NO_WINDOW` constant; Spark and Terraform jobs had passed. Replaced the
+  direct reference with a portable fallback and added a regression test. Type checking now
+  explicitly targets both Linux and Windows locally; the new CI run will verify the pushed code.
+- Moved 21 ignored root build logs into `.local/logs` on D. npm cache/temp were on D; Docker
+  builds stayed on the existing E store. No business-data generation or deletion was performed.

@@ -88,30 +88,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.console
+      additional_contexts:
+        app: service:api
     ports: ['127.0.0.1:58090:8080']
     environment:
       SOURCE_DATABASE_URL: postgresql+psycopg://routeflow:routeflow@source:5432/routeflow
       WAREHOUSE_DATABASE_URL: postgresql+psycopg://routeflow:routeflow@warehouse:5432/warehouse
+      ROUTEFLOW_CONSOLE_STORAGE_POLICY: docker-volume
     volumes:
       - console-state:/var/lib/routeflow-console
       - type: bind
         source: /var/run/docker.sock
         target: /var/run/docker.sock
-        bind: {create_host_path: false}
-      - type: bind
-        source: ${APPDATA:-/nonexistent}/Docker
-        target: /host/docker-settings
-        read_only: true
-        bind: {create_host_path: false}
-      - type: bind
-        source: ./.local/console
-        target: /host/console
-        read_only: true
-        bind: {create_host_path: false}
-      - type: bind
-        source: ${ROUTEFLOW_CONSOLE_STORAGE_ROOT:-E:/DockerDesktop/console-metadata}
-        target: /host/docker-storage
-        read_only: true
         bind: {create_host_path: false}
     tmpfs: ['/tmp:size=32m,mode=1777']
     read_only: true

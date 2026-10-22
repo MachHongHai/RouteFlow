@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "routeflow"
 version = "0.1.0"
 description = "Real-time logistics data platform with transactional delivery and replayable analytics"
+readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
   "fastapi>=0.115,<1", "uvicorn>=0.34,<1", "sqlalchemy>=2.0.38,<2.1",
@@ -15,6 +16,10 @@ dependencies = [
   "dbt-core>=1.10,<1.12", "dbt-postgres>=1.9,<1.11", "dbt-bigquery>=1.9,<1.11",
   "httpx>=0.28,<1"
 ]
+
+[project.urls]
+Repository = "https://github.com/MachHongHai/RouteFlow"
+Documentation = "https://github.com/MachHongHai/RouteFlow/tree/main/docs"
 
 [project.optional-dependencies]
 spark = ["pyspark==4.0.2"]

@@ -1,0 +1,13 @@
+{
+  "name": "routeflow-console-tooling",
+  "private": true,
+  "description": "Development checks for the buildless RouteFlow console",
+  "scripts": {
+    "format": "prettier --write \"routeflow/console_assets/**/*.{html,css,js}\"",
+    "format:check": "prettier --check \"routeflow/console_assets/**/*.{html,css,js}\"",
+    "check": "npm run format:check && node --check routeflow/console_assets/console.js && node --check routeflow/console_assets/generation.js && node --check routeflow/console_assets/database.js"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
+  }
+}

@@ -22,6 +22,7 @@ $env:PIP_CACHE_DIR = 'D:\DevCache\pip'
 $env:CLOUDSDK_CONFIG = 'D:\DevCache\gcloud'
 $env:TEMP = 'D:\RouteFlow-storage\tmp'
 $env:TMP = $env:TEMP
+$env:COMPOSE_FILE = (Join-Path $projectRoot 'docker-compose.yml') + ';' + (Join-Path $projectRoot 'docker-compose.windows.yml')
 foreach ($directory in @($env:UV_CACHE_DIR, $env:PIP_CACHE_DIR, $env:CLOUDSDK_CONFIG, $env:TEMP)) {
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
 }

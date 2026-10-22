@@ -1,174 +1,381 @@
 "use strict";
 const $ = (selector) => document.querySelector(selector);
 const token = $('meta[name="console-token"]').content;
-const state = {overview:null, busy:false, generating:false, refreshing:false, table:"orders", page:1, log:"", view:"services", logService:"api"};
+const state = {
+  overview: null,
+  busy: false,
+  generating: false,
+  refreshing: false,
+  log: "",
+  view: "services",
+  logService: "api",
+};
 const locale = new Intl.NumberFormat("vi-VN");
-const number = (value) => value == null ? "—" : locale.format(Number(value));
-const escape = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const date = (value, full=false) => value ? new Intl.DateTimeFormat("vi-VN", full ? {dateStyle:"short",timeStyle:"short"} : {hour:"2-digit",minute:"2-digit",second:"2-digit"}).format(new Date(value)) : "—";
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve,ms));
-async function api(path, options={}) {
-  const response = await fetch(path, {cache:"no-store", ...options, headers:{"Content-Type":"application/json","X-Console-Token":token,...options.headers}});
-  let payload; try { payload = await response.json(); } catch { throw Error("Máy chủ trả về phản hồi không hợp lệ."); }
-  if (!response.ok) throw Error(typeof payload.detail === "string" ? payload.detail : "Không thực hiện được yêu cầu.");
+const storageReady = () =>
+  state.overview?.storage.controls_allowed ?? state.overview?.storage.pinned_to_e ?? false;
+const number = (value) => (value == null ? "—" : locale.format(Number(value)));
+const escape = (value) =>
+  String(value ?? "").replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+  );
+const date = (value, full = false) =>
+  value
+    ? new Intl.DateTimeFormat(
+        "vi-VN",
+        full
+          ? { dateStyle: "short", timeStyle: "short" }
+          : { hour: "2-digit", minute: "2-digit", second: "2-digit" },
+      ).format(new Date(value))
+    : "—";
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    cache: "no-store",
+    ...options,
+    headers: { "Content-Type": "application/json", "X-Console-Token": token, ...options.headers },
+  });
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    throw Error("Máy chủ trả về phản hồi không hợp lệ.");
+  }
+  if (!response.ok)
+    throw Error(
+      typeof payload.detail === "string" ? payload.detail : "Không thực hiện được yêu cầu.",
+    );
   return payload;
 }
 let toastTimer;
-function toast(message) { $('#toast').textContent=message; $('#toast').hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('#toast').hidden=true,5500); }
+function toast(message) {
+  $("#toast").textContent = message;
+  $("#toast").hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => ($("#toast").hidden = true), 5500);
+}
 function serviceStatus(service) {
   if (service.state === "running") {
-    if ((service.status||"").includes("unhealthy")) return ["failed","Lỗi healthcheck"];
-    if ((service.status||"").includes("starting")) return ["starting","Đang khởi động"];
-    return ["running","Đang chạy"];
+    if ((service.status || "").includes("unhealthy")) return ["failed", "Lỗi healthcheck"];
+    if ((service.status || "").includes("starting")) return ["starting", "Đang khởi động"];
+    return ["running", "Đang chạy"];
   }
-  if (service.state === "restarting") return ["starting","Đang khởi động"];
-  return ["", service.state === "missing" ? "Chưa tạo" : service.state === "unknown" ? "Chưa kết nối" : "Đã dừng"];
+  if (service.state === "restarting") return ["starting", "Đang khởi động"];
+  return [
+    "",
+    service.state === "missing"
+      ? "Chưa tạo"
+      : service.state === "unknown"
+        ? "Chưa kết nối"
+        : "Đã dừng",
+  ];
 }
-const badge = (label, kind="") => `<span class="status ${kind}"><span class="tiny-dot"></span>${escape(label)}</span>`;
+const badge = (label, kind = "") =>
+  `<span class="status ${kind}"><span class="tiny-dot"></span>${escape(label)}</span>`;
 function syncControls() {
-  const locked=state.busy || state.generating || !state.overview?.docker.available || state.overview?.storage.pinned_to_e === false;
-  document.querySelectorAll('[data-target="stack"]').forEach(button=>{
-    const anyRunning=state.overview?.services.some(service=>['running','restarting'].includes(service.state));
-    const allRunning=state.overview?.services.every(service=>service.state==='running');
-    button.disabled=locked || (button.dataset.action==='start' ? allRunning : !anyRunning);
+  const locked =
+    state.busy || state.generating || !state.overview?.docker.available || !storageReady();
+  document.querySelectorAll('[data-target="stack"]').forEach((button) => {
+    const anyRunning = state.overview?.services.some((service) =>
+      ["running", "restarting"].includes(service.state),
+    );
+    const allRunning = state.overview?.services.every((service) => service.state === "running");
+    button.disabled = locked || (button.dataset.action === "start" ? allRunning : !anyRunning);
   });
-  document.querySelectorAll('[data-action]').forEach(button=>{
-    if(button.dataset.target==='docker') button.disabled=state.busy;
-    else if(button.dataset.target!=='stack') button.disabled=locked;
+  document.querySelectorAll("[data-action]").forEach((button) => {
+    if (button.dataset.target === "docker") button.disabled = state.busy;
+    else if (button.dataset.target !== "stack") button.disabled = locked;
   });
 }
 function serviceRow(service) {
-  const [kind,label]=serviceStatus(service);
-  const running=["running","restarting"].includes(service.state);
-  const disabled=state.busy || state.generating || !state.overview?.docker.available || state.overview?.storage.pinned_to_e === false ? "disabled" : "";
-  return `<div class="service-row" role="row"><div class="service-info" role="cell"><div class="service-name" title="${escape(service.detail)}">${escape(service.name)}${service.url ? `<a href="${service.url}" target="_blank" rel="noopener" aria-label="Mở ${escape(service.name)}">Mở</a>` : ""}</div><p>${escape(service.id)}${service.port ? ` · <span class="service-port">:${service.port}</span>` : ""}</p></div><div role="cell">${badge(label,kind)}</div><div class="service-actions" role="cell"><button class="text-button" data-logs="${service.id}" aria-label="Nhật ký ${escape(service.name)}">Nhật ký</button>${running ? `<button class="text-button" data-target="${service.id}" data-action="restart" ${disabled} aria-label="Khởi động lại ${escape(service.name)}">Khởi động lại</button>` : ""}<button class="text-button ${running ? "stop" : ""}" data-target="${service.id}" data-action="${running ? "stop" : "start"}" ${disabled} aria-label="${running ? "Dừng" : "Bật"} ${escape(service.name)}">${running ? "Dừng" : "Bật"}</button></div></div>`;
+  const [kind, label] = serviceStatus(service);
+  const running = ["running", "restarting"].includes(service.state);
+  const disabled =
+    state.busy || state.generating || !state.overview?.docker.available || !storageReady()
+      ? "disabled"
+      : "";
+  return `<div class="service-row" role="row"><div class="service-info" role="cell"><div class="service-name" title="${escape(service.detail)}">${escape(service.name)}${service.url ? `<a href="${service.url}" target="_blank" rel="noopener" aria-label="Mở ${escape(service.name)}">Mở</a>` : ""}</div><p>${escape(service.id)}${service.port ? ` · <span class="service-port">:${service.port}</span>` : ""}</p></div><div role="cell">${badge(label, kind)}</div><div class="service-actions" role="cell"><button class="text-button" data-logs="${service.id}" aria-label="Nhật ký ${escape(service.name)}">Nhật ký</button>${running ? `<button class="text-button" data-target="${service.id}" data-action="restart" ${disabled} aria-label="Khởi động lại ${escape(service.name)}">Khởi động lại</button>` : ""}<button class="text-button ${running ? "stop" : ""}" data-target="${service.id}" data-action="${running ? "stop" : "start"}" ${disabled} aria-label="${running ? "Dừng" : "Bật"} ${escape(service.name)}">${running ? "Dừng" : "Bật"}</button></div></div>`;
 }
 function renderServices() {
-  const data=state.overview; if(!data) return;
-  const search=$('#service-search').value.trim().toLocaleLowerCase("vi-VN"), filter=$('#service-filter').value;
-  const rows=data.services.filter(s=>(`${s.name} ${s.id} ${s.detail}`).toLocaleLowerCase("vi-VN").includes(search) && (filter === "all" || (filter === "running" ? s.state === "running" : !["running","restarting"].includes(s.state))));
-  const list=$('#all-services');
+  const data = state.overview;
+  if (!data) return;
+  const search = $("#service-search").value.trim().toLocaleLowerCase("vi-VN"),
+    filter = $("#service-filter").value;
+  const rows = data.services.filter(
+    (s) =>
+      `${s.name} ${s.id} ${s.detail}`.toLocaleLowerCase("vi-VN").includes(search) &&
+      (filter === "all" ||
+        (filter === "running"
+          ? s.state === "running"
+          : !["running", "restarting"].includes(s.state))),
+  );
+  const list = $("#all-services");
   // Preserve keyboard focus across automatic refreshes of service states.
-  const focus=list.contains(document.activeElement) ? document.activeElement : null;
-  const focusKey=focus ? ['target','action','logs'].map(key=>[key,focus.dataset[key]]).filter(([,value])=>value) : [];
-  const focusLabel=focus?.getAttribute('aria-label');
-  list.innerHTML=rows.length ? rows.map(serviceRow).join("") : '<p class="empty-text">Không có dịch vụ phù hợp.</p>';
-  if(focus) {
-    const replacement=[...list.querySelectorAll('button,a')].find(element=>element.getAttribute('aria-label')===focusLabel && focusKey.every(([key,value])=>element.dataset[key]===value));
-    replacement?.focus({preventScroll:true});
+  const focus = list.contains(document.activeElement) ? document.activeElement : null;
+  const focusKey = focus
+    ? ["target", "action", "logs"]
+        .map((key) => [key, focus.dataset[key]])
+        .filter(([, value]) => value)
+    : [];
+  const focusLabel = focus?.getAttribute("aria-label");
+  list.innerHTML = rows.length
+    ? rows.map(serviceRow).join("")
+    : '<p class="empty-text">Không có dịch vụ phù hợp.</p>';
+  if (focus) {
+    const replacement = [...list.querySelectorAll("button,a")].find(
+      (element) =>
+        element.getAttribute("aria-label") === focusLabel &&
+        focusKey.every(([key, value]) => element.dataset[key] === value),
+    );
+    replacement?.focus({ preventScroll: true });
   }
   syncControls();
 }
 function renderMetrics() {
-  const {data,services,docker}=state.overview;
-  const metrics=[
-    ["Dịch vụ đang chạy",docker.available ? services.filter(s=>s.state === 'running').length : null,"/ 8"],
-    ["Đơn hàng",data.source?.orders,""],
-    ["Sự kiện RAW",data.warehouse?.events,""],
-    ["Điểm GPS",data.warehouse?.gps_points,""]
+  const { data, services, docker } = state.overview;
+  const metrics = [
+    [
+      "Dịch vụ đang chạy",
+      docker.available ? services.filter((s) => s.state === "running").length : null,
+      "/ 8",
+    ],
+    ["Đơn hàng", data.source?.orders, ""],
+    ["Sự kiện RAW", data.warehouse?.events, ""],
+    ["Điểm GPS", data.warehouse?.gps_points, ""],
   ];
-  $('#metrics').innerHTML=metrics.map(([label,value,unit])=>`<div><dt>${label}</dt><dd>${number(value)}${unit ? `<small>${unit}</small>` : ""}</dd></div>`).join('');
+  $("#metrics").innerHTML = metrics
+    .map(
+      ([label, value, unit]) =>
+        `<div><dt>${label}</dt><dd>${number(value)}${unit ? `<small>${unit}</small>` : ""}</dd></div>`,
+    )
+    .join("");
 }
 function renderNotice() {
-  const data=state.overview; if(!data)return;
-  const messages=[];
-  if(!data.docker.available) messages.push(data.docker.message);
-  if(data.storage.pinned_to_e === false) messages.push("Cấu hình WSL chưa ghim trên E. Kiểm tra trước khi bật dịch vụ.");
-  if(state.view==='services' && data.data.source?.dlq) messages.push(`DLQ: ${number(data.data.source.dlq)} sự kiện chưa xử lý. Xem bảng dead_letters trong Database.`);
-  $('#connection-error').hidden=!messages.length;
-  $('#connection-error').textContent=messages.join(" ");
-  if(!data.docker.available && data.storage.pinned_to_e !== false) {
-    const button=document.createElement('button'); button.className='button secondary'; button.dataset.target='docker'; button.dataset.action='start'; button.textContent='Mở Docker Desktop'; $('#connection-error').append(button);
+  const data = state.overview;
+  if (!data) return;
+  const messages = [];
+  if (!data.docker.available) messages.push(data.docker.message);
+  if (!storageReady())
+    messages.push("Cấu hình WSL chưa ghim trên E. Kiểm tra trước khi bật dịch vụ.");
+  if (state.view === "services" && data.data.source?.dlq)
+    messages.push(
+      `DLQ: ${number(data.data.source.dlq)} sự kiện chưa xử lý. Xem bảng dead_letters trong Database.`,
+    );
+  $("#connection-error").hidden = !messages.length;
+  $("#connection-error").textContent = messages.join(" ");
+  if (!data.docker.available && data.storage.pinned_to_e !== false) {
+    const button = document.createElement("button");
+    button.className = "button secondary";
+    button.dataset.target = "docker";
+    button.dataset.action = "start";
+    button.textContent = "Mở Docker Desktop";
+    $("#connection-error").append(button);
   }
   syncControls();
 }
-async function refresh(showFeedback=false) {
-  if(state.refreshing) return;
-  state.refreshing=true; $('#refresh').disabled=true;
+async function refresh(showFeedback = false) {
+  if (state.refreshing) return;
+  state.refreshing = true;
+  $("#refresh").disabled = true;
   try {
-    state.overview=await api('/api/overview');
-    const data=state.overview;
-    state.generating=!!data.generation_running;
-    $('#engine-status').textContent=data.docker.available ? `Docker Engine ${data.docker.version}` : "Docker chưa kết nối";
-    $('#updated-at').textContent=`Cập nhật lúc ${date(data.checked_at)}`;
+    state.overview = await api("/api/overview");
+    const data = state.overview;
+    state.generating = !!data.generation_running;
+    $("#engine-status").textContent = data.docker.available
+      ? `Docker Engine ${data.docker.version}`
+      : "Docker chưa kết nối";
+    $("#updated-at").textContent = `Cập nhật lúc ${date(data.checked_at)}`;
     renderNotice();
-    renderServices(); renderMetrics();
-    if(typeof syncGenerationControls==='function') syncGenerationControls();
-    if(showFeedback) toast("Đã cập nhật trạng thái mới nhất.");
-  } catch(error) {
-    state.overview=null;syncControls();
-    $('#connection-error').hidden=false; $('#connection-error').textContent=`Không kết nối được Console: ${error.message} Dữ liệu phía dưới có thể đã cũ.`;
-  } finally { state.refreshing=false; $('#refresh').disabled=false; }
+    renderServices();
+    renderMetrics();
+    if (typeof syncGenerationControls === "function") syncGenerationControls();
+    if (showFeedback) toast("Đã cập nhật trạng thái mới nhất.");
+  } catch (error) {
+    state.overview = null;
+    syncControls();
+    $("#connection-error").hidden = false;
+    $("#connection-error").textContent =
+      `Không kết nối được Console: ${error.message} Dữ liệu phía dưới có thể đã cũ.`;
+  } finally {
+    state.refreshing = false;
+    $("#refresh").disabled = false;
+  }
 }
-const views={services:"Dịch vụ",generate:"Luồng dữ liệu",data:"Database",logs:"Nhật ký"};
+const views = { services: "Dịch vụ", generate: "Luồng dữ liệu", data: "Database", logs: "Nhật ký" };
 function navigate() {
-  if(location.hash==='#content' && state.overview) return;
-  let view=location.hash.slice(1); if(!views[view]) view="services";
-  state.view=view;
-  document.querySelectorAll('.view').forEach(element=>element.hidden=element.id!==`view-${view}`);
-  document.querySelectorAll('nav a').forEach(element=>{const active=element.dataset.view===view;element.classList.toggle('active',active);if(active) element.setAttribute('aria-current','page'); else element.removeAttribute('aria-current');});
-  $('#page-title').textContent=views[view]; document.title=`RouteFlow · ${views[view]}`;
-  $('#start-stack').hidden=view!=='services';
+  if (location.hash === "#content" && state.overview) return;
+  let view = location.hash.slice(1);
+  if (!views[view]) view = "services";
+  state.view = view;
+  document
+    .querySelectorAll(".view")
+    .forEach((element) => (element.hidden = element.id !== `view-${view}`));
+  document.querySelectorAll("nav a").forEach((element) => {
+    const active = element.dataset.view === view;
+    element.classList.toggle("active", active);
+    if (active) element.setAttribute("aria-current", "page");
+    else element.removeAttribute("aria-current");
+  });
+  $("#page-title").textContent = views[view];
+  document.title = `RouteFlow · ${views[view]}`;
+  $("#start-stack").hidden = view !== "services";
   renderNotice();
-  if(view==='data' && typeof databaseView==='function') databaseView(); if(view==='logs') loadLogs();
-  if(view==='generate' && typeof generationView==='function') generationView();
+  if (view === "data" && typeof databaseView === "function") databaseView();
+  if (view === "logs") loadLogs();
+  if (view === "generate" && typeof generationView === "function") generationView();
 }
-let logRequest=0;
+let logRequest = 0;
 function renderLogs() {
-  const search=$('#log-search').value.toLowerCase();
-  $('#log-output').textContent=state.log.split('\n').filter(line=>line.toLowerCase().includes(search)).join('\n') || 'Không có dòng phù hợp.';
+  const search = $("#log-search").value.toLowerCase();
+  $("#log-output").textContent =
+    state.log
+      .split("\n")
+      .filter((line) => line.toLowerCase().includes(search))
+      .join("\n") || "Không có dòng phù hợp.";
 }
-async function loadLogs(background=false) {
-  const request=++logRequest, output=$('#log-output'), scroll=output.scrollTop;
-  const following=output.scrollHeight-output.clientHeight-scroll<24;
-  $('#load-logs').disabled=true;
-  if(background!==true) output.textContent='Đang tải nhật ký…';
-  try {const result=await api(`/api/logs/${encodeURIComponent(state.logService)}`);if(request!==logRequest)return;state.log=result.content;renderLogs();output.scrollTop=background===true && !following ? scroll : output.scrollHeight;}
-  catch(error) {if(request!==logRequest)return;state.log=error.message;renderLogs();}
-  finally {if(request===logRequest)$('#load-logs').disabled=false;}
+async function loadLogs(background = false) {
+  const request = ++logRequest,
+    output = $("#log-output"),
+    scroll = output.scrollTop;
+  const following = output.scrollHeight - output.clientHeight - scroll < 24;
+  $("#load-logs").disabled = true;
+  if (background !== true) output.textContent = "Đang tải nhật ký…";
+  try {
+    const result = await api(`/api/logs/${encodeURIComponent(state.logService)}`);
+    if (request !== logRequest) return;
+    state.log = result.content;
+    renderLogs();
+    output.scrollTop = background === true && !following ? scroll : output.scrollHeight;
+  } catch (error) {
+    if (request !== logRequest) return;
+    state.log = error.message;
+    renderLogs();
+  } finally {
+    if (request === logRequest) $("#load-logs").disabled = false;
+  }
 }
 async function runAction(target, action) {
-  if(state.busy) return;
-  const label=target==='stack' ? 'toàn bộ RouteFlow' : target==='docker' ? 'Docker Desktop' : state.overview?.services.find(s=>s.id===target)?.name || target;
-  const verb={start:'Bật',stop:'Dừng',restart:'Khởi động lại'}[action];
-  state.busy=true;renderServices();$('#start-stack').disabled=true;
-  const banner=$('#job-banner');banner.hidden=false;banner.className='job-banner';banner.textContent=`${verb} ${label}… Đang thực hiện, có thể mất vài phút.`;
+  if (state.busy) return;
+  const label =
+    target === "stack"
+      ? "toàn bộ RouteFlow"
+      : target === "docker"
+        ? "Docker Desktop"
+        : state.overview?.services.find((s) => s.id === target)?.name || target;
+  const verb = { start: "Bật", stop: "Dừng", restart: "Khởi động lại" }[action];
+  state.busy = true;
+  renderServices();
+  $("#start-stack").disabled = true;
+  const banner = $("#job-banner");
+  banner.hidden = false;
+  banner.className = "job-banner";
+  banner.textContent = `${verb} ${label}… Đang thực hiện, có thể mất vài phút.`;
   try {
-    let job=await api(`/api/actions/${encodeURIComponent(target)}`,{method:'POST',body:JSON.stringify({action})});
-    const started=Date.now();
-    while(job.status==='running') {await sleep(1200);job=await api(`/api/jobs/${job.id}`);banner.textContent=`${verb} ${label}… ${Math.floor((Date.now()-started)/1000)} giây. Trạng thái sẽ cập nhật khi hoàn tất.`;}
-    banner.className=`job-banner ${job.status}`;
-    banner.textContent=job.status==='success' ? `${verb} ${label} thành công.` : `Không hoàn tất thao tác: ${job.output}`;
-    if(job.status==='success') {setTimeout(()=>{if(!state.busy)banner.hidden=true;},5000);}
-  } catch(error) {banner.className='job-banner failed';banner.textContent=error.message;}
-  finally {state.busy=false;await refresh();if(state.view==='logs') await loadLogs();}
+    let job = await api(`/api/actions/${encodeURIComponent(target)}`, {
+      method: "POST",
+      body: JSON.stringify({ action }),
+    });
+    const started = Date.now();
+    while (job.status === "running") {
+      await sleep(1200);
+      job = await api(`/api/jobs/${job.id}`);
+      banner.textContent = `${verb} ${label}… ${Math.floor((Date.now() - started) / 1000)} giây. Trạng thái sẽ cập nhật khi hoàn tất.`;
+    }
+    banner.className = `job-banner ${job.status}`;
+    banner.textContent =
+      job.status === "success"
+        ? `${verb} ${label} thành công.`
+        : `Không hoàn tất thao tác: ${job.output}`;
+    if (job.status === "success") {
+      setTimeout(() => {
+        if (!state.busy) banner.hidden = true;
+      }, 5000);
+    }
+  } catch (error) {
+    banner.className = "job-banner failed";
+    banner.textContent = error.message;
+  } finally {
+    state.busy = false;
+    await refresh();
+    if (state.view === "logs") await loadLogs();
+  }
 }
 let pendingAction;
-document.addEventListener('click',event=>{
-  const logButton=event.target.closest('[data-logs]');if(logButton){state.logService=logButton.dataset.logs;$('#log-select').value=state.logService;if(location.hash==='#logs')loadLogs();else location.hash='logs';return;}
-  const button=event.target.closest('[data-action]');if(!button || button.disabled || state.busy)return;
-  const {target,action}=button.dataset;
-  if(action==='stop' || action==='restart') {
-    pendingAction={target,action};const label=target==='stack'?'toàn bộ RouteFlow':state.overview?.services.find(s=>s.id===target)?.name||target;
-    $('#confirm-title').textContent=`${action==='stop'?'Dừng':'Khởi động lại'} ${label}?`;
-    $('#confirm-description').textContent='Dịch vụ có thể tạm thời không truy cập được. Volume và dữ liệu đã lưu sẽ được giữ nguyên.';
-    $('#accept-confirm').textContent=action==='stop'?'Dừng dịch vụ':'Khởi động lại';$('#confirm-dialog').showModal();
-  } else runAction(target,action);
+document.addEventListener("click", (event) => {
+  const logButton = event.target.closest("[data-logs]");
+  if (logButton) {
+    state.logService = logButton.dataset.logs;
+    $("#log-select").value = state.logService;
+    if (location.hash === "#logs") loadLogs();
+    else location.hash = "logs";
+    return;
+  }
+  const button = event.target.closest("[data-action]");
+  if (!button || button.disabled || state.busy) return;
+  const { target, action } = button.dataset;
+  if (action === "stop" || action === "restart") {
+    pendingAction = { target, action };
+    const label =
+      target === "stack"
+        ? "toàn bộ RouteFlow"
+        : state.overview?.services.find((s) => s.id === target)?.name || target;
+    $("#confirm-title").textContent = `${action === "stop" ? "Dừng" : "Khởi động lại"} ${label}?`;
+    $("#confirm-description").textContent =
+      "Dịch vụ có thể tạm thời không truy cập được. Volume và dữ liệu đã lưu sẽ được giữ nguyên.";
+    $("#accept-confirm").textContent = action === "stop" ? "Dừng dịch vụ" : "Khởi động lại";
+    $("#confirm-dialog").showModal();
+  } else runAction(target, action);
 });
-$('#cancel-confirm').addEventListener('click',()=>$('#confirm-dialog').close());
-$('#accept-confirm').addEventListener('click',()=>{const action=pendingAction;$('#confirm-dialog').close();if(action)runAction(action.target,action.action);});
-$('#refresh').addEventListener('click',()=>refresh(true));
-$('#service-search').addEventListener('input',renderServices);$('#service-filter').addEventListener('change',renderServices);
-$('#log-select').addEventListener('change',event=>{state.logService=event.target.value;loadLogs();});
-$('#load-logs').addEventListener('click',loadLogs);$('#log-search').addEventListener('input',renderLogs);
-$('#copy-logs').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('#log-output').textContent);toast('Đã sao chép log.');}catch{toast('Không sao chép được. Bạn có thể chọn và sao chép nội dung trong khung log.');}});
-window.addEventListener('hashchange',navigate);
+$("#cancel-confirm").addEventListener("click", () => $("#confirm-dialog").close());
+$("#accept-confirm").addEventListener("click", () => {
+  const action = pendingAction;
+  $("#confirm-dialog").close();
+  if (action) runAction(action.target, action.action);
+});
+$("#refresh").addEventListener("click", () => refresh(true));
+$("#service-search").addEventListener("input", renderServices);
+$("#service-filter").addEventListener("change", renderServices);
+$("#log-select").addEventListener("change", (event) => {
+  state.logService = event.target.value;
+  loadLogs();
+});
+$("#load-logs").addEventListener("click", loadLogs);
+$("#log-search").addEventListener("input", renderLogs);
+$("#copy-logs").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText($("#log-output").textContent);
+    toast("Đã sao chép log.");
+  } catch {
+    toast("Không sao chép được. Bạn có thể chọn và sao chép nội dung trong khung log.");
+  }
+});
+window.addEventListener("hashchange", navigate);
 async function init() {
   try {
-    const services=[['api','Delivery API'],['source','Source PostgreSQL'],['warehouse','Analytics Warehouse'],['pubsub','Pub/Sub Emulator'],['relay','Outbox Relay'],['consumer','Event Consumer'],['spark-master','Spark Master'],['spark-worker','Spark Worker']];
-    $('#log-select').innerHTML=services.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
-    navigate();await refresh();
-  } catch(error) {$('#connection-error').hidden=false;$('#connection-error').textContent=`Không mở được Console: ${error.message}`;}
+    const services = [
+      ["api", "Delivery API"],
+      ["source", "Source PostgreSQL"],
+      ["warehouse", "Analytics Warehouse"],
+      ["pubsub", "Pub/Sub Emulator"],
+      ["relay", "Outbox Relay"],
+      ["consumer", "Event Consumer"],
+      ["spark-master", "Spark Master"],
+      ["spark-worker", "Spark Worker"],
+    ];
+    $("#log-select").innerHTML = services
+      .map(([id, name]) => `<option value="${id}">${name}</option>`)
+      .join("");
+    navigate();
+    await refresh();
+  } catch (error) {
+    $("#connection-error").hidden = false;
+    $("#connection-error").textContent = `Không mở được Console: ${error.message}`;
+  }
 }
 init();
-setInterval(()=>{if(!document.hidden){refresh();if(state.view==='logs')loadLogs(true);}},15000);
+setInterval(() => {
+  if (!document.hidden) {
+    refresh();
+    if (state.view === "logs") loadLogs(true);
+  }
+}, 15000);

@@ -28,6 +28,7 @@ from sqlalchemy.engine import make_url
 from routeflow.config import settings
 from routeflow.console_database import router as database_router
 from routeflow.console_generation import Generation, Generations, counts
+from routeflow.console_storage import storage_ready, storage_summary
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = Path(__file__).parent / "console_assets"
@@ -145,7 +146,7 @@ def execute(arguments: list[str], timeout: int = 12) -> str:
         encoding="utf-8",
         errors="replace",
         timeout=timeout,
-        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
     if result.returncode:
         raise RuntimeError(redact((result.stderr or result.stdout)[-3000:]))
@@ -284,66 +285,6 @@ def data_summary() -> dict[str, Any]:
     return result
 
 
-def storage_summary() -> dict[str, Any]:
-    if CONTAINER_MODE:
-        snapshot = json.loads(Path("/host/console/host.json").read_text(encoding="utf-8-sig"))
-        config = json.loads(
-            Path("/host/docker-settings/settings-store.json").read_text(encoding="utf-8-sig")
-        )
-        snapshot["pinned_to_e"] = config.get("CustomWslDistroDir") == "E:\\DockerDesktop\\data\\wsl"
-        mounts = {
-            "C:": "/host/docker-settings",
-            "D:": "/host/console",
-            "E:": "/host/docker-storage",
-        }
-        for disk in snapshot["disks"]:
-            usage = shutil.disk_usage(mounts[disk["drive"]])
-            if abs(usage.total - disk["total"]) < 1024 * 1024:
-                disk.update(total=usage.total, used=usage.used, free=usage.free)
-            else:
-                snapshot["disk_snapshot_at"] = snapshot["observed_at"]
-        return snapshot
-    disks = []
-    for drive in ("C:/", "D:/", "E:/"):
-        if Path(drive).exists():
-            usage = shutil.disk_usage(drive)
-            disks.append(
-                {"drive": drive[:2], "total": usage.total, "used": usage.used, "free": usage.free}
-            )
-    vhd = Path("E:/DockerDesktop/data/wsl/disk/docker_data.vhdx")
-    proof_path = Path(
-        "D:/RouteFlow-backups/recovered-after-docker-update-20261016/restore-verification.json"
-    )
-    backup: dict[str, Any] | None = None
-    try:
-        proof = json.loads(proof_path.read_text(encoding="utf-8-sig"))
-        backup = {
-            "verified": proof.get("restore_verified") is True,
-            "checked_at": proof.get("checked_at"),
-            "path": str(proof_path.parent),
-        }
-    except (OSError, ValueError):
-        pass
-    pinned: bool | None = None
-    if os.name == "nt":
-        try:
-            config = json.loads(
-                (Path(os.environ["APPDATA"]) / "Docker/settings-store.json").read_text(
-                    encoding="utf-8-sig"
-                )
-            )
-            pinned = config.get("CustomWslDistroDir") == "E:\\DockerDesktop\\data\\wsl"
-        except (OSError, ValueError, KeyError):
-            pinned = False
-    return {
-        "disks": disks,
-        "docker_bytes": vhd.stat().st_size if vhd.is_file() else None,
-        "docker_path": str(vhd),
-        "pinned_to_e": pinned,
-        "backup": backup,
-    }
-
-
 @app.get("/api/overview")
 def overview() -> dict[str, Any]:
     services = [
@@ -428,7 +369,7 @@ def action_command(target: str, action: str) -> list[str]:
     if CONTAINER_MODE:
         if target not in {*SERVICES, "stack"}:
             raise HTTPException(404, "Dịch vụ không nằm trong RouteFlow.")
-        if storage_summary()["pinned_to_e"] is not True:
+        if not storage_ready(storage_summary()):
             raise HTTPException(409, "Cấu hình Docker không còn trỏ đến E. Dừng để kiểm tra.")
         return ["console-broker", target, action]
     if target == "docker" and action == "start":
@@ -545,7 +486,7 @@ def generate_data(body: Generation) -> dict[str, Any]:
                 409,
                 "Bật đủ Source, Warehouse, Pub/Sub, API, Relay và Consumer trước khi tạo dữ liệu.",
             )
-        if current["storage"]["pinned_to_e"] is not True:
+        if not storage_ready(current["storage"]):
             raise HTTPException(409, "Cấu hình Docker chưa ghim trên E.")
         record, _ = generation_runs.create(body)
         pool.submit(generation_runs.run, record["id"], read_sql, transform_generated, redact)

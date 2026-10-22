@@ -1,96 +1,316 @@
 <!doctype html>
 <html lang="vi">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="console-token" content="__CONSOLE_TOKEN__">
-  <title>RouteFlow · Quản lý dịch vụ</title>
-  <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/console.css">
-  <script src="/assets/console.js" defer></script>
-  <script src="/assets/generation.js" defer></script>
-  <script src="/assets/database.js" defer></script>
-</head>
-<body>
-<a class="skip" href="#content">Đến nội dung chính</a>
-<aside class="sidebar">
-  <a class="brand" href="#services">RouteFlow<span>Quản trị local</span></a>
-  <nav aria-label="Điều hướng chính">
-    <a href="#services" data-view="services">Dịch vụ</a>
-    <a href="#generate" data-view="generate">Tạo dữ liệu</a>
-    <a href="#data" data-view="data">Database</a>
-    <a href="#logs" data-view="logs">Nhật ký</a>
-  </nav>
-  <div class="environment">localhost:58090<span>GCP chưa kết nối</span></div>
-</aside>
-<main id="content" tabindex="-1">
-  <header class="page-heading">
-    <div><h1 id="page-title">Dịch vụ</h1><p id="engine-status">Đang kết nối Docker…</p></div>
-    <div class="heading-actions"><button id="refresh" class="button secondary">Làm mới</button><button id="start-stack" class="button primary" data-action="start" data-target="stack" disabled>Bật toàn bộ</button></div>
-  </header>
-  <div id="connection-error" class="notice" role="status" hidden></div>
-  <div id="job-banner" class="job-banner" role="status" aria-live="polite" hidden></div>
-  <section id="view-generate" class="view" hidden>
-    <form id="generation-form" class="generation-form">
-      <label>Số đơn<input id="generation-orders" type="number" min="1" max="500" step="1" value="20" required></label>
-      <label>Ngày nghiệp vụ (UTC)<input id="generation-date" type="date" required></label>
-      <label>Seed<input id="generation-seed" type="number" min="0" max="9999999" step="1" value="42" required></label>
-      <label class="generation-checkbox"><input id="generation-transform" type="checkbox" checked>Chạy dbt sau khi nhận RAW</label>
-      <button id="generate-submit" class="button primary" type="submit" disabled>Tạo dữ liệu</button>
-    </form>
-    <p class="generation-help meta">1–500 đơn mỗi đợt · Tạo thêm dữ liệu mới · Cùng seed tái lập kết quả nghiệp vụ.</p>
-    <p id="generation-readiness" class="meta" role="status" hidden></p>
-    <p id="generation-error" class="notice" role="alert" hidden></p>
-    <div class="section-toolbar flow-toolbar">
-      <label class="run-selector">Theo dõi<select id="generation-runs"><option value="">Toàn bộ pipeline</option></select></label>
-      <span id="generation-status" role="status" aria-live="polite" class="meta">Đang đọc pipeline…</span>
-    </div>
-    <section class="flow-board" aria-labelledby="flow-board-title">
-      <div class="flow-board-heading"><div><span class="eyebrow">STREAMING PIPELINE</span><h2 id="flow-board-title">Hành trình dữ liệu</h2></div><div class="flow-completion"><strong id="flow-percent">—</strong><span>đã vào RAW</span></div></div>
-      <ol id="pipeline-track" class="pipeline-track" aria-label="Các bước xử lý dữ liệu"></ol>
-      <div id="ingestion-bar" hidden><div class="flow-distribution" id="flow-distribution" aria-hidden="true"></div><div class="flow-legend" id="flow-legend"></div><progress id="ingestion-progress" class="sr-only" aria-label="Sự kiện của đợt đã vào RAW" value="0" max="1"></progress><span id="ingestion-count" class="sr-only"></span></div>
-      <div class="flow-board-footer"><span id="flow-health"></span><span id="flow-updated"></span></div>
-    </section>
-    <section class="step-detail" aria-labelledby="step-detail-title"><div><h2 id="step-detail-title">Luồng xử lý</h2><a id="step-data-link" href="#data" class="inline-link">Mở bảng ↗</a></div><p id="step-detail-body" class="meta">Chọn một bước để xem chi tiết.</p></section>
-    <section class="gps-branch" aria-labelledby="gps-branch-title"><div class="gps-heading"><h2 id="gps-branch-title">Nhánh GPS</h2><span class="meta">BATCH · Đọc từ archive · Chạy riêng</span></div><div id="gps-flow" class="gps-flow"></div><p id="gps-freshness" class="meta"></p></section>
-    <details class="run-metadata"><summary>Thông tin đợt chạy</summary><p id="generation-id" class="meta" hidden></p></details>
-    <details id="generation-events" hidden><summary>Sự kiện của đợt <span class="meta">20 bản ghi mới nhất</span></summary><div class="table-scroll"><table><thead><tr><th>Sự kiện</th><th>Mã sự kiện</th><th>Outbox / Pub/Sub</th><th>RAW</th></tr></thead><tbody id="generation-events-body"></tbody></table></div></details>
-  </section>
-  <section id="view-services" class="view">
-    <dl id="metrics" class="metrics" aria-label="Số liệu hệ thống"><div><dt>Dịch vụ đang chạy</dt><dd>—</dd></div></dl>
-    <div class="section-toolbar">
-      <div class="filter-controls"><input id="service-search" type="search" placeholder="Tìm dịch vụ…" aria-label="Tìm dịch vụ"><select id="service-filter" aria-label="Lọc trạng thái"><option value="all">Tất cả trạng thái</option><option value="running">Đang chạy</option><option value="stopped">Chưa chạy</option></select></div>
-      <button class="button danger-quiet" data-action="stop" data-target="stack" disabled>Dừng toàn bộ</button>
-    </div>
-    <div class="service-table" role="table" aria-label="Dịch vụ RouteFlow">
-      <div class="service-head" role="row"><span role="columnheader">Dịch vụ</span><span role="columnheader">Trạng thái</span><span role="columnheader" class="actions-heading">Thao tác</span></div>
-      <div id="all-services" role="rowgroup"><p class="empty-text">Đang đọc trạng thái dịch vụ…</p></div>
-    </div>
-    <div class="section-footer"><span id="updated-at">Đang cập nhật…</span><span>Tự cập nhật mỗi 15 giây</span></div>
-  </section>
-  <section id="view-data" class="view" hidden>
-    <div class="database-toolbar"><label>Kết nối <select id="database-select"><option value="source">Source · PostgreSQL</option><option value="warehouse">Warehouse · PostgreSQL</option></select></label><span id="database-connection" class="meta" role="status">Đang kết nối…</span><button id="database-reload" class="text-button">Tải lại schema</button></div>
-    <div class="database-workspace">
-      <aside class="schema-browser" aria-label="Danh sách bảng"><input id="database-search" type="search" placeholder="Tìm bảng…" aria-label="Tìm bảng trong database"><div id="database-tables"></div></aside>
-      <div class="query-workspace">
-        <div class="query-heading"><h2 id="database-table-name">SQL Editor</h2><span class="readonly-label">Chỉ đọc</span></div>
-        <label for="sql-editor" class="sr-only">Truy vấn SQL</label><textarea id="sql-editor" spellcheck="false" rows="5" placeholder="SELECT * FROM public.orders LIMIT 100;"></textarea>
-        <div class="query-actions"><span class="meta">SELECT / WITH · Ctrl + Enter</span><label class="meta">Giới hạn <select id="query-limit" aria-label="Giới hạn số dòng"><option>100</option><option>200</option><option>500</option></select></label><button id="query-run" class="button primary">Chạy truy vấn <span aria-hidden="true">→</span></button></div>
-        <p id="query-error" class="notice" role="alert" hidden></p>
-        <div class="query-results-heading"><div class="result-tabs" role="tablist" aria-label="Kết quả database"><button id="result-tab" role="tab" aria-selected="true" aria-controls="query-result-panel">Kết quả</button><button id="columns-tab" role="tab" aria-selected="false" aria-controls="query-columns-panel">Cấu trúc cột</button></div><span id="query-status" class="meta" role="status">Chọn bảng hoặc nhập SQL.</span></div>
-        <div id="query-result-panel" role="tabpanel" aria-labelledby="result-tab"><div class="table-scroll query-result-scroll"><table id="query-result"><thead></thead><tbody></tbody></table></div><p id="query-result-note" class="meta"></p></div>
-        <div id="query-columns-panel" role="tabpanel" aria-labelledby="columns-tab" hidden><div class="table-scroll"><table><thead><tr><th>Cột</th><th>Kiểu dữ liệu</th><th>Ràng buộc</th><th>Mặc định</th></tr></thead><tbody id="database-columns"></tbody></table></div></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="console-token" content="__CONSOLE_TOKEN__" />
+    <title>RouteFlow · Quản lý dịch vụ</title>
+    <link rel="icon" href="/assets/mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/assets/console.css" />
+    <script src="/assets/console.js" defer></script>
+    <script src="/assets/generation.js" defer></script>
+    <script src="/assets/database.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#content">Đến nội dung chính</a>
+    <aside class="sidebar">
+      <a class="brand" href="#services">RouteFlow<span>Quản trị local</span></a>
+      <nav aria-label="Điều hướng chính">
+        <a href="#services" data-view="services">Dịch vụ</a>
+        <a href="#generate" data-view="generate">Tạo dữ liệu</a>
+        <a href="#data" data-view="data">Database</a>
+        <a href="#logs" data-view="logs">Nhật ký</a>
+      </nav>
+      <div class="environment">localhost:58090<span>GCP chưa kết nối</span></div>
+    </aside>
+    <main id="content" tabindex="-1">
+      <header class="page-heading">
+        <div>
+          <h1 id="page-title">Dịch vụ</h1>
+          <p id="engine-status">Đang kết nối Docker…</p>
+        </div>
+        <div class="heading-actions">
+          <button id="refresh" class="button secondary">Làm mới</button
+          ><button
+            id="start-stack"
+            class="button primary"
+            data-action="start"
+            data-target="stack"
+            disabled
+          >
+            Bật toàn bộ
+          </button>
+        </div>
+      </header>
+      <div id="connection-error" class="notice" role="status" hidden></div>
+      <div id="job-banner" class="job-banner" role="status" aria-live="polite" hidden></div>
+      <section id="view-generate" class="view" hidden>
+        <form id="generation-form" class="generation-form">
+          <label
+            >Số đơn<input
+              id="generation-orders"
+              type="number"
+              min="1"
+              max="500"
+              step="1"
+              value="20"
+              required
+          /></label>
+          <label>Ngày nghiệp vụ (UTC)<input id="generation-date" type="date" required /></label>
+          <label
+            >Seed<input
+              id="generation-seed"
+              type="number"
+              min="0"
+              max="9999999"
+              step="1"
+              value="42"
+              required
+          /></label>
+          <label class="generation-checkbox"
+            ><input id="generation-transform" type="checkbox" checked />Chạy dbt sau khi nhận
+            RAW</label
+          >
+          <button id="generate-submit" class="button primary" type="submit" disabled>
+            Tạo dữ liệu
+          </button>
+        </form>
+        <p class="generation-help meta">
+          1–500 đơn mỗi đợt · Tạo thêm dữ liệu mới · Cùng seed tái lập kết quả nghiệp vụ.
+        </p>
+        <p id="generation-readiness" class="meta" role="status" hidden></p>
+        <p id="generation-error" class="notice" role="alert" hidden></p>
+        <div class="section-toolbar flow-toolbar">
+          <label class="run-selector"
+            >Theo dõi<select id="generation-runs">
+              <option value="">Toàn bộ pipeline</option>
+            </select></label
+          >
+          <span id="generation-status" role="status" aria-live="polite" class="meta"
+            >Đang đọc pipeline…</span
+          >
+        </div>
+        <section class="flow-board" aria-labelledby="flow-board-title">
+          <div class="flow-board-heading">
+            <div>
+              <span class="eyebrow">STREAMING PIPELINE</span>
+              <h2 id="flow-board-title">Hành trình dữ liệu</h2>
+            </div>
+            <div class="flow-completion">
+              <strong id="flow-percent">—</strong><span>đã vào RAW</span>
+            </div>
+          </div>
+          <ol id="pipeline-track" class="pipeline-track" aria-label="Các bước xử lý dữ liệu"></ol>
+          <div id="ingestion-bar" hidden>
+            <div class="flow-distribution" id="flow-distribution" aria-hidden="true"></div>
+            <div class="flow-legend" id="flow-legend"></div>
+            <progress
+              id="ingestion-progress"
+              class="sr-only"
+              aria-label="Sự kiện của đợt đã vào RAW"
+              value="0"
+              max="1"
+            ></progress
+            ><span id="ingestion-count" class="sr-only"></span>
+          </div>
+          <div class="flow-board-footer">
+            <span id="flow-health"></span><span id="flow-updated"></span>
+          </div>
+        </section>
+        <section class="step-detail" aria-labelledby="step-detail-title">
+          <div>
+            <h2 id="step-detail-title">Luồng xử lý</h2>
+            <a id="step-data-link" href="#data" class="inline-link">Mở bảng ↗</a>
+          </div>
+          <p id="step-detail-body" class="meta">Chọn một bước để xem chi tiết.</p>
+        </section>
+        <section class="gps-branch" aria-labelledby="gps-branch-title">
+          <div class="gps-heading">
+            <h2 id="gps-branch-title">Nhánh GPS</h2>
+            <span class="meta">BATCH · Đọc từ archive · Chạy riêng</span>
+          </div>
+          <div id="gps-flow" class="gps-flow"></div>
+          <p id="gps-freshness" class="meta"></p>
+        </section>
+        <details class="run-metadata">
+          <summary>Thông tin đợt chạy</summary>
+          <p id="generation-id" class="meta" hidden></p>
+        </details>
+        <details id="generation-events" hidden>
+          <summary>Sự kiện của đợt <span class="meta">20 bản ghi mới nhất</span></summary>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Sự kiện</th>
+                  <th>Mã sự kiện</th>
+                  <th>Outbox / Pub/Sub</th>
+                  <th>RAW</th>
+                </tr>
+              </thead>
+              <tbody id="generation-events-body"></tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+      <section id="view-services" class="view">
+        <dl id="metrics" class="metrics" aria-label="Số liệu hệ thống">
+          <div>
+            <dt>Dịch vụ đang chạy</dt>
+            <dd>—</dd>
+          </div>
+        </dl>
+        <div class="section-toolbar">
+          <div class="filter-controls">
+            <input
+              id="service-search"
+              type="search"
+              placeholder="Tìm dịch vụ…"
+              aria-label="Tìm dịch vụ"
+            /><select id="service-filter" aria-label="Lọc trạng thái">
+              <option value="all">Tất cả trạng thái</option>
+              <option value="running">Đang chạy</option>
+              <option value="stopped">Chưa chạy</option>
+            </select>
+          </div>
+          <button class="button danger-quiet" data-action="stop" data-target="stack" disabled>
+            Dừng toàn bộ
+          </button>
+        </div>
+        <div class="service-table" role="table" aria-label="Dịch vụ RouteFlow">
+          <div class="service-head" role="row">
+            <span role="columnheader">Dịch vụ</span><span role="columnheader">Trạng thái</span
+            ><span role="columnheader" class="actions-heading">Thao tác</span>
+          </div>
+          <div id="all-services" role="rowgroup">
+            <p class="empty-text">Đang đọc trạng thái dịch vụ…</p>
+          </div>
+        </div>
+        <div class="section-footer">
+          <span id="updated-at">Đang cập nhật…</span><span>Tự cập nhật mỗi 15 giây</span>
+        </div>
+      </section>
+      <section id="view-data" class="view" hidden>
+        <div class="database-toolbar">
+          <label
+            >Kết nối
+            <select id="database-select">
+              <option value="source">Source · PostgreSQL</option>
+              <option value="warehouse">Warehouse · PostgreSQL</option>
+            </select></label
+          ><span id="database-connection" class="meta" role="status">Đang kết nối…</span
+          ><button id="database-reload" class="text-button">Tải lại schema</button>
+        </div>
+        <div class="database-workspace">
+          <aside class="schema-browser" aria-label="Danh sách bảng">
+            <input
+              id="database-search"
+              type="search"
+              placeholder="Tìm bảng…"
+              aria-label="Tìm bảng trong database"
+            />
+            <div id="database-tables"></div>
+          </aside>
+          <div class="query-workspace">
+            <div class="query-heading">
+              <h2 id="database-table-name">SQL Editor</h2>
+              <span class="readonly-label">Chỉ đọc</span>
+            </div>
+            <label for="sql-editor" class="sr-only">Truy vấn SQL</label
+            ><textarea
+              id="sql-editor"
+              spellcheck="false"
+              rows="5"
+              placeholder="SELECT * FROM public.orders LIMIT 100;"
+            ></textarea>
+            <div class="query-actions">
+              <span class="meta">SELECT / WITH · Ctrl + Enter</span
+              ><label class="meta"
+                >Giới hạn
+                <select id="query-limit" aria-label="Giới hạn số dòng">
+                  <option>100</option>
+                  <option>200</option>
+                  <option>500</option>
+                </select></label
+              ><button id="query-run" class="button primary">
+                Chạy truy vấn <span aria-hidden="true">→</span>
+              </button>
+            </div>
+            <p id="query-error" class="notice" role="alert" hidden></p>
+            <div class="query-results-heading">
+              <div class="result-tabs" role="tablist" aria-label="Kết quả database">
+                <button
+                  id="result-tab"
+                  role="tab"
+                  aria-selected="true"
+                  aria-controls="query-result-panel"
+                >
+                  Kết quả</button
+                ><button
+                  id="columns-tab"
+                  role="tab"
+                  aria-selected="false"
+                  aria-controls="query-columns-panel"
+                >
+                  Cấu trúc cột
+                </button>
+              </div>
+              <span id="query-status" class="meta" role="status">Chọn bảng hoặc nhập SQL.</span>
+            </div>
+            <div id="query-result-panel" role="tabpanel" aria-labelledby="result-tab">
+              <div class="table-scroll query-result-scroll">
+                <table id="query-result">
+                  <thead></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <p id="query-result-note" class="meta"></p>
+            </div>
+            <div id="query-columns-panel" role="tabpanel" aria-labelledby="columns-tab" hidden>
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Cột</th>
+                      <th>Kiểu dữ liệu</th>
+                      <th>Ràng buộc</th>
+                      <th>Mặc định</th>
+                    </tr>
+                  </thead>
+                  <tbody id="database-columns"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section id="view-logs" class="view" hidden>
+        <div class="section-toolbar">
+          <div class="filter-controls">
+            <select id="log-select" aria-label="Chọn dịch vụ xem log"></select
+            ><button id="load-logs" class="button secondary">Tải log</button
+            ><button id="copy-logs" class="button secondary">Sao chép</button>
+          </div>
+          <span class="meta">150 dòng gần nhất</span>
+        </div>
+        <input
+          id="log-search"
+          class="log-search"
+          type="search"
+          placeholder="Lọc nội dung log…"
+          aria-label="Lọc nội dung log"
+        />
+        <pre id="log-output" tabindex="0">Đang tải nhật ký…</pre>
+      </section>
+    </main>
+    <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+      <h2 id="confirm-title">Dừng dịch vụ?</h2>
+      <p id="confirm-description"></p>
+      <div class="dialog-actions">
+        <button id="cancel-confirm" class="button secondary" autofocus>Hủy</button
+        ><button id="accept-confirm" class="button danger">Dừng dịch vụ</button>
       </div>
-    </div>
-  </section>
-  <section id="view-logs" class="view" hidden>
-    <div class="section-toolbar"><div class="filter-controls"><select id="log-select" aria-label="Chọn dịch vụ xem log"></select><button id="load-logs" class="button secondary">Tải log</button><button id="copy-logs" class="button secondary">Sao chép</button></div><span class="meta">150 dòng gần nhất</span></div>
-    <input id="log-search" class="log-search" type="search" placeholder="Lọc nội dung log…" aria-label="Lọc nội dung log">
-    <pre id="log-output" tabindex="0">Đang tải nhật ký…</pre>
-  </section>
-
-</main>
-<dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">Dừng dịch vụ?</h2><p id="confirm-description"></p><div class="dialog-actions"><button id="cancel-confirm" class="button secondary" autofocus>Hủy</button><button id="accept-confirm" class="button danger">Dừng dịch vụ</button></div></dialog>
-<div id="toast" role="status" aria-live="polite" hidden></div>
-</body>
+    </dialog>
+    <div id="toast" role="status" aria-live="polite" hidden></div>
+  </body>
 </html>

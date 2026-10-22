@@ -11,7 +11,8 @@ directories totaled 872.37 MiB of installer/update files dated October 16 or ear
 Automatic approval review blocked their deletion; they remain in place. No container volume,
 active VHD, recovery backup or application history was deleted. There was no start-of-UI
 baseline to quantify earlier C growth; modified-file totals are not a measure of new disk use.
-The local console now displays C, D and E free space. Docker host logs and desktop application
+Storage diagnostics retain C/D/E metadata internally; the console no longer has a storage page.
+Docker host logs and desktop application
 state can still write small files on C; project commands use D temp/cache through the wrapper.
 
 | Data | Physical location |
@@ -35,6 +36,12 @@ the saved data disk exists, the `docker-desktop` WSL registration uses its direc
 swap/crash settings point to E. Desktop startup may repair the runtime registration; workloads
 are checked after startup. `DataFolder` alone does not select the WSL disk.
 It does not download packages or start services merely to check storage.
+
+The wrapper selects the base Compose file plus `docker-compose.windows.yml`. Only that
+override mounts Windows settings and D/E host metadata. The portable base file uses Docker
+volumes and is intended for other machines. `console_storage.py` keeps the two policies separate;
+missing workstation metadata blocks controls instead of silently switching to portable mode.
+Frontend development tooling uses `npm_config_cache=D:\DevCache\npm` and D temp paths.
 
 ```powershell
 .\scripts\start-docker.ps1

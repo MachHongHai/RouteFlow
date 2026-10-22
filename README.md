@@ -1,203 +1,98 @@
-# RouteFlow — Real-Time Logistics Data Platform
+# RouteFlow
 
-A runnable Data Engineering portfolio project for a bounded delivery business: transactional
-FastAPI/PostgreSQL operations, at-least-once Pub/Sub ingestion, distributed PySpark GPS processing,
-partitioned Parquet, and tested dbt analytical models. Local execution needs no cloud account.
+A logistics data platform combining event ingestion, warehouse modeling, and distributed GPS processing. Built to reconstruct reliable delivery analytics when events are duplicated, delayed, or delivered out of order.
 
-The business problem is reconstructing trustworthy delivery, payment and driver-movement analytics
-when events can be duplicated, delayed, malformed or delivered out of order. This repository
-implements recovery paths as working code and verifies final data, not just successful startup.
+[![Validation](https://github.com/MachHongHai/RouteFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/MachHongHai/RouteFlow/actions/workflows/ci.yml)
 
-**Deployment status:** verified locally; not connected to a real GCP project or deployed to GCP.
-Start with the [Vietnamese GCP guide](docs/GCP_GETTING_STARTED_VI.md) and
-[current gaps](docs/PROJECT_GAPS_VI.md) before treating the cloud configuration as operational.
+**Python · PostgreSQL · Pub/Sub · PySpark · dbt · Parquet · Docker · Terraform**
+
+**Status:** verified locally. GCP infrastructure and adapters are implemented; deployment to a real GCP project remains unverified.
+
+## Architecture
 
 ```mermaid
 flowchart LR
-  App[Delivery API + generator] --> PG[(PostgreSQL + transactional outbox)]
-  PG --> Relay[Leased relay]
-  Relay --> PubSub[Pub/Sub / local Emulator]
-  PubSub --> Consumer[Consumer]
-  Consumer --> Archive[Raw JSONL archive / GCS]
+  App[API / generator] --> PG[(PostgreSQL + outbox)]
+  PG --> Relay --> PubSub[Pub/Sub] --> Consumer
+  Consumer --> Archive[JSONL archive]
   Consumer --> RAW[(RAW warehouse)]
-  Archive --> Spark[PySpark Master + Worker]
-  Spark --> Parquet[Silver / gold partitioned Parquet]
-  Parquet --> GPS[(GPS warehouse summaries)]
-  RAW --> dbt[dbt staging → intermediate → marts]
-  GPS --> dbt
-  dbt --> Checks[Quality + source reconciliation]
+  RAW --> dbt[dbt models + tests] --> Marts[Analytics marts]
+  Archive --> Spark[PySpark GPS] --> Parquet[Silver / gold Parquet]
+  Parquet --> GPS[(GPS summaries)] --> dbt
 ```
 
-## Implemented production patterns
+The consumer persists original bytes before writing RAW and acknowledging a message. Spark processes archived GPS independently; dbt combines event-derived business models with GPS summaries.
 
-- Validated order/payment/driver transitions with transactional outbox and request idempotency.
-- Relay claiming via `SKIP LOCKED`, ownership leases, broker confirmation and bounded backoff.
-- Durable archive before acknowledgement, identity-collision detection, DLQ and explicit replay.
-- Event-ID deduplication, aggregate-version lifecycle reconstruction and late-event incremental upserts.
-- Replay/backfill metadata, source-to-mart metric/record reconciliation and intentional failure probes.
-- Spark native Haversine/window calculations, broadcast references, anomaly flags and partitioned Parquet.
-- Transactional replacement of GPS summaries, working SCD2 and downstream GPS/order business tests.
-- Modular opt-in GCP infrastructure, private push consumption, WIF deployment and cost controls.
+## Engineering highlights
 
-## Stack
+- **Reliable ingestion:** transactional outbox, leased relay claims, confirmed publishing, bounded retries, event-ID deduplication, and collision detection.
+- **Recoverable data:** versioned contracts, dead-letter records, immutable archive, replay/backfill, and source-to-mart reconciliation.
+- **Analytics modeling:** 22 dbt models and 33 data tests, including incremental order facts, lifecycle reconstruction, and an SCD2 driver dimension.
+- **Distributed GPS processing:** native Spark window/Haversine expressions, anomaly flags, date-partitioned Parquet, and transactional summary replacement.
+- **Local console:** service controls, bounded sample generation, live batch tracing, schema browsing, and a read-only SQL editor.
 
-Python 3.12, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL 16, Google Pub/Sub/Emulator, dbt Core with
-Postgres/BigQuery adapters, GCS, Spark 4.0.2/PySpark with Java 17, Terraform, Docker Compose, pytest,
-Ruff and mypy. `uv.lock` pins application dependencies; PostgreSQL and emulator images include digests.
-No Kafka, Kubernetes, always-on cloud worker or paid Spark cluster is required.
+<details>
+<summary>Console screenshots — pipeline and SQL workspace</summary>
+
+![Pipeline tracing](docs/images/pipeline.jpg)
+![Database explorer and SQL editor](docs/images/database.jpg)
+
+</details>
 
 ## Run locally
 
-Local management UI: click **Start** on the **routeflow** group in Docker Desktop, then open
-[RouteFlow Console](http://127.0.0.1:58090) to control the eight services, inspect
-database schemas with a read-only SQL editor and service logs, generate bounded batches,
-and trace their actual
-Outbox → Pub/Sub → RAW → dbt/Mart progress. The **console** container publishes port **58090**.
-First-time setup/update uses `scripts/start-console.ps1 -Build`; see the [console guide](docs/LOCAL_CONSOLE_VI.md).
+Requires Docker with Compose **2.17+**. Allow approximately **8 GiB Docker memory** for the optional Spark branch. No cloud account is needed.
 
-On this Windows workstation, keep project/cache data on D and Docker bulk data on E. Use the
-guarded PowerShell wrapper in [storage placement](docs/DISK_STORAGE.md) to set cache/temp paths
-and check Docker's destination before starting builds.
-If containers disappear after a Desktop update, use the [recovery runbook](docs/DOCKER_RECOVERY_VI.md)
-to locate the existing disk and verify backups before rebuilding.
+```bash
+git clone https://github.com/MachHongHai/RouteFlow.git
+cd RouteFlow
+docker compose --profile console up -d --build
+```
+
+Open [Console](http://127.0.0.1:58090) or [API docs](http://127.0.0.1:58000/docs). In **Tạo dữ liệu**, generate a small batch with dbt enabled; follow it from Outbox to RAW and Mart. In **Database**, explore Source/Warehouse tables or run SELECT/WITH queries.
+
+Initialization applies migrations and provisions the local warehouse and emulator. All published ports bind to loopback; Compose credentials are for local demonstration. Containers start explicitly and retain data in named volumes.
+
+For the maintainer's Windows D/E storage policy, use the [guarded workstation setup](docs/DISK_STORAGE.md). Other machines use the portable base Compose file.
+
+Optional distributed Spark demo (requires [uv](https://docs.astral.sh/uv/)):
 
 ```bash
 uv sync --frozen
-docker compose up -d --build
-docker compose exec -T api python -m routeflow.generator --orders 20 --seed 42
-docker compose exec -T api python -m routeflow.cli wait-ingestion
-docker compose exec -T api python -m routeflow.cli dbt
-docker compose exec -T api python -m routeflow.cli reconcile --grace-seconds 0
-```
-
-Initialization applies migrations and creates emulator/warehouse resources automatically. API docs:
-[127.0.0.1:58000/docs](http://127.0.0.1:58000/docs). The local source and warehouse SQL ports are 55432
-and 55433. Database credentials are demonstration-only Compose defaults. See `.env.example` for
-host execution and [local development](docs/LOCAL_DEVELOPMENT.md) for the full command sequence.
-
-Enable the Spark branch and run the complete orchestration:
-
-```bash
 docker compose --profile spark up -d --build spark-master spark-worker
 uv run python scripts/local_pipeline.py --orders 20 --spark
 ```
 
-The Spark UI is [127.0.0.1:58080](http://127.0.0.1:58080). Historical GPS backfill submits an actual
-standalone job; use the generated UTC dates:
+This generates additional data, waits for ingestion, submits Spark, builds dbt models, and reconciles Source against Mart. Spark UI: [localhost:58080](http://127.0.0.1:58080). GPS distances are estimates from synthetic coordinates.
+
+## Validate
 
 ```bash
-uv run python -m routeflow.cli spark-backfill --from 2026-10-15 --to 2026-10-15 --explain
-docker compose exec -T api python -m routeflow.cli dbt
-docker compose exec -T api python -m routeflow.cli metrics
-docker compose --profile spark down
-```
-
-## Data flow and model grain
-
-A request changes an order and its outbox event in one source transaction. The relay publishes
-confirmed messages; the consumer durably archives exact original bytes, validates the versioned
-contract and identity, then commits RAW before ack. dbt deduplicates events and selects the highest
-aggregate version for current state. Spark independently reads archived GPS, orders driver histories,
-calculates estimated segments, writes date-partitioned Parquet and replaces affected gold summaries.
-
-| Mart | Grain |
-|---|---|
-| `fact_order` | One order |
-| `fact_payment` | One simulated payment, including its refund state |
-| `fact_delivery` | One delivered order with SCD2 driver key at assignment |
-| `fact_driver_performance` | Driver / UTC delivery date / hour |
-| `fact_driver_mobility` | Driver / UTC date from Spark GPS estimates |
-| `fact_zone_mobility` | Zone / UTC date / hour from Spark |
-| `dim_driver` | Driver profile version with half-open validity interval |
-
-Customers, restaurants, zones and dates have dimensions too. [Data model and lineage](docs/DATA_MODEL.md)
-explains keys, incremental predicates and SCD2 behavior. [Spark design](docs/SPARK_ARCHITECTURE.md)
-explains date boundaries, rejected data and immutable Parquet generations.
-
-## Test and inspect
-
-```bash
+uv sync --frozen
 uv run ruff check .
+uv run ruff format --check .
 uv run mypy routeflow
 uv run pytest
-docker compose config --quiet
 ```
 
-For the real PostgreSQL/Emulator/dbt suite, set `RUN_INTEGRATION=1` in your shell, then run
-`uv run pytest tests/unit tests/contract tests/integration tests/e2e -q`. Tests create separate
-databases suffixed `_test`. Spark numerical/Parquet tests run in its optional container:
-
-```bash
-docker compose --profile spark run --rm --no-deps -e RUN_INTEGRATION=1 --entrypoint python spark-job -m pytest tests/spark -q -o cache_dir=/tmp/pytest-cache
-```
-
-[Testing](docs/TESTING.md) includes PowerShell syntax and Terraform checks.
-[Validation evidence](docs/VALIDATION.md) records actual runs separately from untested cloud paths.
-Development verification includes real streaming E2E, repeated replay/backfill, Spark worker
-execution and numerical GPS tests. No cloud throughput, coverage percentage or cost saving is claimed.
-
-## Analytical questions
-
-[Runnable queries](docs/ANALYTICAL_QUERIES.sql) answer mean delivery duration/SLA by zone,
-cancellation and payment-failure rates, demand by hour, late-event fraction and estimated driver
-movement with quality flags. For example:
-
-```sql
-select z.name, avg(d.delivery_minutes) as average_delivery_minutes
-from analytics.fact_delivery d
-join analytics.dim_zone z on d.zone_id = z.zone_id
-group by z.name;
-```
-
-The result contains one row per observed zone, with minutes calculated from business timestamps.
-It describes this synthetic workload; it is not evidence about a real delivery business.
-
-## Reliability guarantees and limits
-
-Delivery is **at least once**. Duplicate RAW attempts are expected. Local logical RAW is protected
-by an event-ID primary key, BigQuery staging deduplicates append loads, and facts upsert on business
-keys. An older lifecycle event cannot overwrite a newer version. The ingestion-time overlap does
-not discard newly ingested historical order events. Spark's late-data range replacement also
-rebuilds subsequent segment endpoints, including midnight crossings.
-
-The source/control database is a single availability dependency. Cloud BigQuery per-message batch
-loads are deliberately low-volume and subject to load-job quotas. Cloud relay execution is scheduled,
-so API-to-broker latency can extend until the next job. RAW/archive retention bounds historical
-recovery. GPS estimates are not road distance or measured working time; repeated simulation runs
-do not constitute a real historical shift calendar. Cloud IAM/API behavior still needs an authorized
-account smoke test. See [operations](docs/OPERATIONS.md) and [recovery](docs/FAILURE_RECOVERY.md).
-
-## Cloud, cost and deployment
-
-`infra/terraform` defines Pub/Sub/DLQ, BigQuery layers/tables, an archive bucket, private Cloud Run
-services, bounded jobs, Workflows/Scheduler, service identities, WIF and monitoring/budget controls.
-GCP deployment is opt-in; no script applies infrastructure automatically. Use an external free-plan
-PostgreSQL source if appropriate instead of requiring Cloud SQL. No paid Spark service is provisioned.
-
-Read [deployment](docs/CLOUD_DEPLOYMENT.md) and [verified cost assumptions](docs/CLOUD_COSTS.md)
-before enabling anything. Defaults include one maximum service instance, an initially paused daily
-schedule, short broker retention, storage expiration and query limits. Budgets are alerts, not a
-spending cap; the large dual-adapter container may exceed Artifact Registry's small storage allowance.
-The safest zero-billing demonstration is local Compose.
+The default suite skips infrastructure-dependent tests. [Testing](docs/TESTING.md) covers PostgreSQL/Emulator integration, streaming E2E, Spark numerical/Parquet tests, frontend checks, and Terraform validation. [Validation evidence](docs/VALIDATION.md) separates observed local results from unverified cloud behavior.
 
 ## Repository
 
-`routeflow/` holds the shared business, API, broker, storage, operations and Spark implementation.
-`migrations/` contains Alembic revisions; `dbt/` contains warehouse models/tests/macros; `scripts/`
-provides local orchestration and benchmarks; `infra/terraform/` contains data/runtime modules;
-`tests/` contains unit, contract, integration, E2E and Spark tests; `.github/workflows/` contains
-validation and manual deployment; `docs/adr/` records concrete architectural trade-offs.
+```text
+routeflow/       Business API, ingestion, storage, console, and Spark jobs
+migrations/      Versioned PostgreSQL schema migrations
+dbt/             Staging, intermediate, marts, macros, and data tests
+tests/           Unit, contract, integration, E2E, and Spark suites
+scripts/         Local orchestration, storage guards, backups, and benchmarks
+infra/terraform/ Optional GCP infrastructure modules
+docs/            Architecture, operations, decisions, and validation evidence
+```
 
-## Portfolio use
+## Documentation
 
-Suggested CV bullets grounded in locally verified functionality:
+[Architecture](docs/ARCHITECTURE.md) · [Data model](docs/DATA_MODEL.md) · [Spark design](docs/SPARK_ARCHITECTURE.md) · [Analytical SQL](docs/ANALYTICAL_QUERIES.sql)
 
-- Built a delivery analytics platform with PostgreSQL transactional outbox, Pub/Sub Emulator,
-  idempotent ingestion, contract validation, DLQ replay and source-to-warehouse reconciliation.
-- Implemented distributed PySpark GPS processing with native Haversine/window expressions,
-  anomaly checks, partitioned Parquet and repeatable warehouse backfills.
-- Modeled delivery/payment marts and an event-sourced SCD2 dimension using dbt; validated duplicate,
-  crash, late-event and out-of-order recovery with automated integration and E2E tests.
+[Local setup](docs/LOCAL_DEVELOPMENT.md) · [Console guide](docs/LOCAL_CONSOLE_VI.md) · [Recovery](docs/FAILURE_RECOVERY.md) · [GCP status and gaps](docs/PROJECT_GAPS_VI.md)
 
-Do not claim these services were deployed on GCP until you actually deploy and test them.
-[Interview guide](docs/INTERVIEW_GUIDE.md) explains the design using the implementation.
+[Documentation index](docs/README.md) · [Contributing](CONTRIBUTING.md) · [Portfolio and interview notes](docs/PORTFOLIO.md)

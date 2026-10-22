@@ -18,3 +18,6 @@ infra/terraform/terraform.tfvars
 *.egg-info/
 
 *.log
+node_modules/
+*.key
+*.pem

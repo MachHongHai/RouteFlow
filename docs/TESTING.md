@@ -9,10 +9,23 @@ are never truncated by the test fixture.
 ```bash
 uv sync --frozen
 uv run ruff check .
+uv run ruff format --check .
 uv run mypy routeflow
 uv run pytest
 docker compose config --quiet
 ```
+
+The buildless console uses pinned Prettier development tooling (Node.js 22 in CI):
+
+```bash
+npm ci --ignore-scripts
+npm run check
+```
+
+This checks frontend formatting and JavaScript syntax. Use `npm run format` to apply formatting.
+On the maintainer workstation, set `npm_config_cache=D:\DevCache\npm` and TEMP/TMP on D.
+The base Compose configuration is portable; CI also builds and checks the console without
+Windows host mounts. D/E enforcement is covered separately by workstation policy tests.
 
 Enable integration tests (PowerShell):
 

@@ -10,8 +10,6 @@ New-Item -ItemType Directory -Path (Join-Path $projectRoot '.local/console'),'E:
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & $wrapper docker image inspect routeflow-console:local --format '{{.Id}}' 2>$null
 if ($LASTEXITCODE -ne 0 -or $Build) {
-    & $wrapper docker compose build --pull=false api
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     & $wrapper docker compose build --pull=false console
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }

@@ -1,0 +1,22 @@
+# Optional maintainer workstation policy; the base Compose file is portable.
+# scripts/dev.ps1 selects this override and verifies D/E storage before Docker writes.
+services:
+  console:
+    environment:
+      ROUTEFLOW_CONSOLE_STORAGE_POLICY: workstation
+    volumes:
+      - type: bind
+        source: ${APPDATA}/Docker
+        target: /host/docker-settings
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ./.local/console
+        target: /host/console
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: E:/DockerDesktop/console-metadata
+        target: /host/docker-storage
+        read_only: true
+        bind: {create_host_path: false}

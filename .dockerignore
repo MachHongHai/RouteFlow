@@ -13,3 +13,10 @@ dbt/logs
 
 *.log
 infra/terraform/.terraform
+node_modules
+docs
+.github
+.editorconfig
+.prettierrc.json
+package.json
+package-lock.json

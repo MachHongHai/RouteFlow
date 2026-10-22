@@ -7,22 +7,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22', cache: npm}
+      - run: npm ci --ignore-scripts
+      - run: npm run check
       - uses: astral-sh/setup-uv@v6
         with: {version: '0.11.19', python-version: '3.12'}
       - run: uv sync --frozen
       - run: uv run ruff check .
+      - run: uv run ruff format --check .
       - run: uv run mypy routeflow
       - run: uv run pytest tests/unit tests/contract -q
       - run: docker compose config --quiet
-      - run: docker compose up -d --build
+      - run: docker compose --profile console up -d --build
       - run: uv run pytest tests/integration tests/e2e -q
         env: {RUN_INTEGRATION: '1'}
       - run: docker compose exec -T api python -m routeflow.cli dbt
       - run: docker compose exec -T api dbt compile --project-dir dbt --profiles-dir dbt
+      - name: Portable console and database schema
+        run: >-
+          uv run python -c "import httpx;
+          c=httpx.Client(base_url='http://127.0.0.1:58090',trust_env=False);
+          assert c.get('/').status_code==200;
+          data=c.get('/api/overview').raise_for_status().json();
+          assert data['storage']['policy']=='docker-volume';
+          assert data['storage']['controls_allowed'];
+          assert c.get('/api/database/source/catalog').raise_for_status().json()['tables']"
       - if: always()
         run: docker compose logs --tail 100
       - if: always()
-        run: docker compose down
+        run: docker compose --profile console down
   spark:
     runs-on: ubuntu-latest
     steps:
