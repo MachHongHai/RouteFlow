@@ -1,5 +1,30 @@
 # Executed validation — 2026-10-16
 
+## Docker-managed console — 2026-10-22
+
+- Console is now an existing member of the RouteFlow Docker Desktop group, published only
+  at `127.0.0.1:58090 → 8080`. The Windows foreground server was stopped. Compose startup
+  brought up the console and all eight managed services; init completed with exit code 0.
+- Set application and console restart policies to `no`; also updated the three existing
+  application containers that previously used `unless-stopped`. Container inspect confirms
+  the new policy. Merely opening Docker no longer requests these workloads to restart.
+- Added opt-in local dependency waiting for database/schema/subscription readiness. Cloud
+  images skip the local wait when the Compose-only mode flag is absent; unit-tested.
+- `pytest tests/unit tests/contract -q`: **55 passed**. Ruff passed repository-wide, mypy
+  passed 29 source files, JavaScript syntax and PowerShell launcher parsing passed.
+- Broker tests cover project/service label checks, target/action/path allowlists, dependency
+  ordering and initialization, Docker log framing, null port lists, current E storage guard,
+  and startup retry. Web UID 10001 is denied direct access to the Docker socket; the private
+  broker owns socket access and publishes no host port. Live overview/table/log reads and
+  a real Relay restart through the browser succeeded.
+- After startup/control: 34 source orders = 34 fact orders, 562 RAW events, 264 GPS points,
+  nine daily GPS rows, pending outbox 0. Existing deliberate DLQ record retained. C had
+  about 29.18 GiB free and showed no GiB-scale growth against the pre-build measurement.
+- A further stop/start rehearsal of the entire group was rejected by automatic approval
+  review (`blocked by policy`); it was not retried through another mechanism. Actual Docker
+  Desktop cold group-start was therefore not directly rehearsed. Compose startup and the
+  narrower live Relay restart above were verified; no volume deletion/prune was attempted.
+
 ## Local operations console — 2026-10-19
 
 - `scripts/dev.ps1 uv run --frozen pytest tests/unit tests/contract -q`: **43 passed**,

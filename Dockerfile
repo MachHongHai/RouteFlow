@@ -17,6 +17,7 @@ COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 RUN mkdir -p /app/dbt/target /app/dbt/logs && chown -R 10001 /app/dbt/target /app/dbt/logs
 USER 10001
+ENTRYPOINT ["python", "/app/scripts/container_entrypoint.py"]
 CMD ["uvicorn", "routeflow.api:app", "--host", "0.0.0.0", "--port", "8080"]
 
 FROM spark-dependencies AS spark

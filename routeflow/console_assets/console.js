@@ -73,6 +73,8 @@ function renderMetrics() {
 }
 function renderStorage() {
   const storage=state.overview.storage;
+  $('#storage-observed').hidden=!storage.observed_at;
+  $('#storage-observed').textContent=storage.observed_at ? `Dung lượng VHD được ghi nhận lúc ${date(storage.observed_at,true)}.${storage.disk_snapshot_at ? ' Số đo dung lượng ổ đĩa cũng lấy từ thời điểm này.' : ' Dung lượng trống các ổ được đọc trực tiếp.'}` : '';
   const roles={"C:":"Windows, ứng dụng và log máy chủ","D:":"Mã nguồn, cache, backup","E:":"Docker và volume"};
   $('#storage-disks').innerHTML=storage.disks.map(disk=>`<div class="disk-row"><div><strong>Ổ ${disk.drive}</strong><p>${roles[disk.drive] || "Ổ đĩa local"}</p></div><progress value="${disk.used}" max="${disk.total}" aria-label="Dung lượng đã dùng ổ ${disk.drive}"></progress><div class="disk-free">Trống ${bytes(disk.free)}<p>/ ${bytes(disk.total)}</p></div></div>`).join('');
   $('#storage-details').innerHTML=`<div class="storage-row"><div><strong>Ổ đĩa Docker · ${bytes(storage.docker_bytes)}</strong><p>${escape(storage.docker_path)}</p></div>${badge(storage.pinned_to_e ? "Đã ghim trên E" : "Cần kiểm tra",storage.pinned_to_e ? "running" : "failed")}</div><div class="storage-row"><div><strong>Bản sao đã kiểm tra phục hồi</strong><p>${escape(storage.backup?.path || "Chưa tìm thấy bản ghi backup.")}</p><p>${storage.backup ? `Kiểm tra lúc ${date(storage.backup.checked_at,true)}. Kết quả được lưu từ lần đó; chưa kiểm tra lại file hiện tại.` : "Tạo backup và chạy verify để kiểm tra phục hồi."}</p></div>${badge(storage.backup?.verified ? "Đã thử phục hồi" : "Chưa xác minh",storage.backup?.verified ? "running" : "")}</div>`;

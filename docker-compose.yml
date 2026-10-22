@@ -9,6 +9,7 @@ x-app: &app
     WAREHOUSE_DATABASE_URL: postgresql+psycopg://routeflow:routeflow@warehouse:5432/warehouse
     PUBSUB_EMULATOR_HOST: pubsub:8085
     GOOGLE_CLOUD_PROJECT: routeflow-local
+    ROUTEFLOW_WAIT_MODE: app
     ARCHIVE_PATH: /archive
     DBT_HOST: warehouse
     DBT_PORT: '5432'
@@ -21,7 +22,8 @@ x-app: &app
   depends_on:
     init:
       condition: service_completed_successfully
-  restart: unless-stopped
+  # Local workloads start explicitly from the console or Compose, not with Docker Desktop.
+  restart: 'no'
 services:
   source:
     image: postgres:16@sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54
@@ -58,6 +60,9 @@ services:
   init:
     <<: *app
     user: root
+    environment:
+      <<: *env
+      ROUTEFLOW_WAIT_MODE: init
     command: ['sh', '-c', 'mkdir -p /archive /lake /app/dbt/target /app/dbt/logs && chown -R 10001 /archive /lake /app/dbt/target /app/dbt/logs && alembic upgrade head && python -m routeflow.cli init && python -m routeflow.cli provision']
     depends_on:
       source: {condition: service_healthy}
@@ -77,6 +82,49 @@ services:
   consumer:
     <<: *app
     command: ['python', '-m', 'routeflow.cli', 'consume']
+  console:
+    profiles: [console]
+    image: routeflow-console:local
+    build:
+      context: .
+      dockerfile: Dockerfile.console
+    ports: ['127.0.0.1:58090:8080']
+    environment:
+      SOURCE_DATABASE_URL: postgresql+psycopg://routeflow:routeflow@source:5432/routeflow
+      WAREHOUSE_DATABASE_URL: postgresql+psycopg://routeflow:routeflow@warehouse:5432/warehouse
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${APPDATA:-/nonexistent}/Docker
+        target: /host/docker-settings
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ./.local/console
+        target: /host/console
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${ROUTEFLOW_CONSOLE_STORAGE_ROOT:-E:/DockerDesktop/console-metadata}
+        target: /host/docker-storage
+        read_only: true
+        bind: {create_host_path: false}
+    tmpfs: ['/tmp:size=32m,mode=1777']
+    read_only: true
+    init: true
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 256m
+    cpus: 0.5
+    restart: 'no'
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/')"]
+      interval: 5s
+      retries: 10
   spark-master:
     profiles: [spark]
     build: {context: ., target: spark}

@@ -1,0 +1,6 @@
+FROM routeflow-app:local
+USER root
+COPY routeflow/console.py routeflow/console_broker.py routeflow/console_entry.py /app/routeflow/
+COPY routeflow/console_assets /app/routeflow/console_assets
+ENV ROUTEFLOW_CONSOLE_CONTAINER=1 PYTHONDONTWRITEBYTECODE=1
+ENTRYPOINT ["python", "-m", "routeflow.console_entry"]

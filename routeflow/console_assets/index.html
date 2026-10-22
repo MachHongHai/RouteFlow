@@ -53,7 +53,7 @@
     <pre id="log-output" tabindex="0">Đang tải nhật ký…</pre>
   </section>
   <section id="view-storage" class="view" hidden>
-    <h2>Ổ đĩa</h2><div id="storage-disks" class="storage-disks"></div>
+    <h2>Ổ đĩa</h2><p id="storage-observed" class="meta" hidden></p><div id="storage-disks" class="storage-disks"></div>
     <h2>Vị trí dữ liệu & bản sao</h2><div id="storage-details"></div>
     <details class="storage-help"><summary>Tạo và kiểm tra bản sao mới</summary><p>Mở PowerShell tại thư mục dự án. Đặt tên thư mục mới cho mỗi bản sao.</p><pre>cd D:\Du-an\RouteFlow
 .\scripts\dev.ps1 uv run python scripts/backup_local.py backup --destination D:\RouteFlow-backups\TEN_BAN_SAO_MOI

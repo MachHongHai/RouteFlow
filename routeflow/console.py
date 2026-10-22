@@ -1,6 +1,7 @@
 """Loopback-only control panel, independent of the Docker-hosted business API."""
 
 import hmac
+import ipaddress
 import json
 import os
 import re
@@ -12,6 +13,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
+from urllib.error import HTTPError
+from urllib.request import Request as URLRequest
+from urllib.request import urlopen
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -26,6 +30,7 @@ from routeflow.config import settings
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = Path(__file__).parent / "console_assets"
 TOKEN = secrets.token_urlsafe(32)
+CONTAINER_MODE = os.environ.get("ROUTEFLOW_CONSOLE_CONTAINER") == "1"
 SERVICES: dict[str, dict[str, Any]] = {
     "source": {
         "name": "Source PostgreSQL",
@@ -123,6 +128,9 @@ def redact(value: str) -> str:
 
 
 def execute(arguments: list[str], timeout: int = 12) -> str:
+    if CONTAINER_MODE and arguments[0] == "console-broker":
+        result = broker(f"/actions/{arguments[1]}", {"action": arguments[2]}, timeout=timeout)
+        return redact(result["output"])
     result = subprocess.run(
         arguments,
         cwd=ROOT,
@@ -139,7 +147,28 @@ def execute(arguments: list[str], timeout: int = 12) -> str:
 
 
 def docker(*arguments: str, timeout: int = 12) -> str:
+    if CONTAINER_MODE:
+        if arguments[0] == "version":
+            return str(broker("/version", timeout=timeout)["version"])
+        if arguments[0] == "ps":
+            return "\n".join(json.dumps(row) for row in broker("/containers", timeout=timeout))
+        if arguments[:2] == ("compose", "logs") and arguments[-1] in SERVICES:
+            return redact(broker(f"/logs/{arguments[-1]}", timeout=timeout)["content"])
+        raise ValueError("Lệnh Docker không được hỗ trợ trong console.")
     return execute(["docker", *arguments], timeout)
+
+
+def broker(path: str, body: dict[str, str] | None = None, timeout: int = 12) -> Any:
+    request = URLRequest(
+        "http://127.0.0.1:58100" + path,
+        data=json.dumps(body).encode() if body is not None else None,
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            return json.load(response)
+    except HTTPError as error:
+        raise RuntimeError(json.load(error).get("detail", "Không kết nối được broker.")) from error
 
 
 def guarded(arguments: list[str], desktop: bool = False) -> list[str]:
@@ -158,9 +187,16 @@ def guarded(arguments: list[str], desktop: bool = False) -> list[str]:
 
 @app.middleware("http")
 async def local_only(request: Request, call_next: Any) -> Any:
+    client = request.client.host if request.client else ""
+    allowed_client = client in {"127.0.0.1", "::1"}
+    if CONTAINER_MODE and client:
+        try:
+            allowed_client = ipaddress.ip_address(client).is_private
+        except ValueError:
+            pass
     if (
         request.client is None
-        or request.client.host not in {"127.0.0.1", "::1"}
+        or not allowed_client
         or request.url.hostname not in {"127.0.0.1", "localhost", "::1"}
     ):
         return JSONResponse({"detail": "Console chỉ mở trên localhost."}, status_code=403)
@@ -195,7 +231,12 @@ def read_sql(database: str, query: str, parameters: tuple[Any, ...] = ()) -> lis
     if cfg.environment != "local" or cfg.warehouse_mode != "postgres":
         raise RuntimeError("Console hỗ trợ database local.")
     url = make_url(cfg.source_database_url if database == "source" else cfg.warehouse_database_url)
-    if url.host not in {"127.0.0.1", "localhost", "::1"}:
+    allowed_hosts = (
+        {"source" if database == "source" else "warehouse"}
+        if CONTAINER_MODE
+        else {"127.0.0.1", "localhost", "::1"}
+    )
+    if url.host not in allowed_hosts:
         raise RuntimeError("Database phải nằm trên localhost.")
     with psycopg.connect(
         url.set(drivername="postgresql").render_as_string(hide_password=False),
@@ -238,6 +279,24 @@ def data_summary() -> dict[str, Any]:
 
 
 def storage_summary() -> dict[str, Any]:
+    if CONTAINER_MODE:
+        snapshot = json.loads(Path("/host/console/host.json").read_text(encoding="utf-8-sig"))
+        config = json.loads(
+            Path("/host/docker-settings/settings-store.json").read_text(encoding="utf-8-sig")
+        )
+        snapshot["pinned_to_e"] = config.get("CustomWslDistroDir") == "E:\\DockerDesktop\\data\\wsl"
+        mounts = {
+            "C:": "/host/docker-settings",
+            "D:": "/host/console",
+            "E:": "/host/docker-storage",
+        }
+        for disk in snapshot["disks"]:
+            usage = shutil.disk_usage(mounts[disk["drive"]])
+            if abs(usage.total - disk["total"]) < 1024 * 1024:
+                disk.update(total=usage.total, used=usage.used, free=usage.free)
+            else:
+                snapshot["disk_snapshot_at"] = snapshot["observed_at"]
+        return snapshot
     disks = []
     for drive in ("C:/", "D:/", "E:/"):
         if Path(drive).exists():
@@ -364,6 +423,12 @@ class Action(BaseModel):
 
 
 def action_command(target: str, action: str) -> list[str]:
+    if CONTAINER_MODE:
+        if target not in {*SERVICES, "stack"}:
+            raise HTTPException(404, "Dịch vụ không nằm trong RouteFlow.")
+        if storage_summary()["pinned_to_e"] is not True:
+            raise HTTPException(409, "Cấu hình Docker không còn trỏ đến E. Dừng để kiểm tra.")
+        return ["console-broker", target, action]
     if target == "docker" and action == "start":
         return guarded([], desktop=True)
     if target not in SERVICES and target != "stack":
@@ -373,8 +438,7 @@ def action_command(target: str, action: str) -> list[str]:
         arguments = [*prefix, "up", "-d", "--no-build", "--pull", "never"]
     else:
         arguments = [*prefix, action]
-    if target != "stack":
-        arguments.append(target)
+    arguments.extend(SERVICES if target == "stack" else [target])
     return guarded(arguments)
 
 

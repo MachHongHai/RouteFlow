@@ -80,7 +80,8 @@ def test_start_is_bounded_and_preserves_volumes(monkeypatch: Any) -> None:
     monkeypatch.setattr(console, "guarded", lambda args, **_: args)
     start = console.action_command("stack", "start")
     assert "--no-build" in start
-    assert start[-2:] == ["--pull", "never"]
+    assert start[start.index("--pull") + 1] == "never"
+    assert start[-8:] == list(console.SERVICES)
     assert console.action_command("source", "stop") == [
         "compose",
         "--profile",
